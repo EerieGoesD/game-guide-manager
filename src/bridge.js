@@ -1,23 +1,36 @@
-import axios from 'axios';
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 const GUIDES_FILE = 'guides.json';
 
-/**
- * Bridge API used by the UI:
- * - fetchUrl(url) -> string
- * - readGuides()  -> Guide[]
- * - writeGuides(guides) -> void
- *
- * Implementations:
- * 1) Electron: window.GuideBridge injected by preload (preferred)
- * 2) Capacitor (Android/iOS): native HTTP + filesystem
- * 3) Web fallback: localStorage + browser fetch (may fail due to CORS)
- */
+const UA_DESKTOP_CHROME =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+const UA_IOS_SAFARI =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
+
+const COMMON_HEADERS = {
+  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Cache-Control': 'no-cache',
+  Pragma: 'no-cache'
+};
+
+function looksLikeBotBlock(content) {
+  if (typeof content !== 'string') return false;
+  const t = content.toLowerCase();
+  return (
+    t.includes('_cf_chl_opt') ||
+    t.includes('challenge-platform') ||
+    t.includes('enable javascript and cookies') ||
+    t.includes('access denied') ||
+    t.includes('request blocked')
+  );
+}
+
 export function getBridge() {
   if (window.GuideBridge && typeof window.GuideBridge.fetchUrl === 'function') {
-    return window.GuideBridge; // Electron
+    return window.GuideBridge;
   }
 
   if (Capacitor?.isNativePlatform?.()) {
@@ -29,24 +42,40 @@ export function getBridge() {
 
 function capacitorBridge() {
   return {
-    platform: 'capacitor',
+    platform: Capacitor.getPlatform?.() || 'capacitor',
 
     async fetchUrl(url) {
-      const res = await CapacitorHttp.request({
+      let res = await CapacitorHttp.request({
         url,
         method: 'GET',
         responseType: 'text',
-        headers: {
-          'User-Agent': 'Mozilla/5.0',
-          'Accept': 'text/html,text/plain,*/*'
-        }
+        headers: { ...COMMON_HEADERS, 'User-Agent': UA_DESKTOP_CHROME }
       });
 
+      if (res?.status === 403) {
+        res = await CapacitorHttp.request({
+          url,
+          method: 'GET',
+          responseType: 'text',
+          headers: { ...COMMON_HEADERS, 'User-Agent': UA_IOS_SAFARI }
+        });
+      }
+
+      if (!res || typeof res.status !== 'number') {
+        throw new Error('Network error (no status).');
+      }
       if (res.status >= 400) {
         throw new Error(`HTTP ${res.status}`);
       }
+
       const data = res.data;
-      return typeof data === 'string' ? data : JSON.stringify(data);
+      const text = typeof data === 'string' ? data : JSON.stringify(data);
+
+      if (looksLikeBotBlock(text)) {
+        throw new Error('Blocked by bot protection (try Paste Text).');
+      }
+
+      return text;
     },
 
     async readGuides() {
@@ -56,8 +85,7 @@ function capacitorBridge() {
           directory: Directory.Data,
           encoding: Encoding.UTF8
         });
-        const txt = r.data || '[]';
-        return JSON.parse(txt);
+        return JSON.parse(r.data || '[]');
       } catch {
         return [];
       }
