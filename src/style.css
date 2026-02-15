@@ -380,7 +380,6 @@ label { display: block; color: #66c0f4; margin-bottom: 5px; font-weight: bold; f
   color: #66c0f4;
 }
 
-/* Link in support modal - NEW LINE with proper spacing */
 .modal-card.modal-compact .modal-body a {
   color: #c7d5e0;
   text-decoration: underline;

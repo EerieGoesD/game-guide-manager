@@ -307,18 +307,16 @@ app.innerHTML = `
 document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
 
 /* -----------------------------
-   Support modal (startup)
+   Support modal
 --------------------------------*/
 let supportKeyHandler = null;
 function showSupportModal() {
   const modal = document.getElementById('supportModal');
   const btn = document.getElementById('supportClose');
 
-  // show as overlay (doesn't push layout)
   modal.style.display = 'flex';
   modal.classList.add('show');
 
-  // close handlers
   const close = () => hideSupportModal();
 
   const onBackdrop = (e) => {
@@ -1331,11 +1329,8 @@ document.getElementById('btnClearImport').addEventListener('click', clearImportU
 document.getElementById('btnImportReplace').addEventListener('click', importReplaceAll);
 document.getElementById('btnImportMerge').addEventListener('click', importMergeKeepCurrent);
 
-// default tab
 setTab('export');
 
-// Init
 updateGuideCount();
 
-// Show the centered support modal on startup (after first render)
 setTimeout(() => showSupportModal(), 0);

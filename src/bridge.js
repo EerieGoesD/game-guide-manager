@@ -32,7 +32,6 @@ function capacitorBridge() {
     platform: 'capacitor',
 
     async fetchUrl(url) {
-      // Native HTTP call (not subject to browser CORS). Still may be blocked by the target site.
       const res = await CapacitorHttp.request({
         url,
         method: 'GET',
@@ -43,7 +42,6 @@ function capacitorBridge() {
         }
       });
 
-      // CapacitorHttp returns { data, status, headers, url }
       if (res.status >= 400) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -81,7 +79,6 @@ function webBridge() {
     platform: 'web',
 
     async fetchUrl(url) {
-      // Browser fetch is subject to CORS; it will fail for many sites.
       const res = await fetch(url, { method: 'GET' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.text();

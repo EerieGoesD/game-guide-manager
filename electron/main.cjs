@@ -6,12 +6,10 @@ const axios = require('axios');
 
 const isDev = !app.isPackaged;
 
-// Helps Windows taskbar grouping/icon identity
 if (process.platform === 'win32') {
   app.setAppUserModelId('com.eerie.guidemanager');
 }
 
-// Optional tray (set to true if you want a tray icon + menu)
 const ENABLE_TRAY = false;
 
 let mainWindow = null;
@@ -27,7 +25,6 @@ function firstExistingPath(paths) {
 }
 
 function getIconPngPath() {
-  // Use PNG for BrowserWindow icon (Linux cares most)
   return firstExistingPath([
     path.join(process.cwd(), 'build', 'icon.png'),
     path.join(__dirname, '..', 'build', 'icon.png'),
@@ -39,7 +36,6 @@ function getIconPngPath() {
 }
 
 function getTrayIconPath() {
-  // Windows tray prefers .ico; others can use png
   const ico = firstExistingPath([
     path.join(process.cwd(), 'build', 'icon.ico'),
     path.join(__dirname, '..', 'build', 'icon.ico'),
@@ -102,7 +98,6 @@ async function fetchUrl(url) {
 
   const content = response.data;
 
-  // Friendly block detection (not a bypass)
   if (
     typeof content === 'string' &&
     (content.includes('_cf_chl_opt') ||
@@ -129,7 +124,6 @@ function createWindow() {
     }
   });
 
-  // Open external links in the user's default browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: 'deny' };
@@ -262,7 +256,6 @@ function fetchUrlViaBrowserWindow(url) {
           })();
         `);
       } catch {
-        // ignore
       }
     });
   });
