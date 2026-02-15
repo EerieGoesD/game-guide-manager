@@ -13,16 +13,17 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     private var pendingCall: CAPPluginCall?
-    private var nav: UINavigationController?
-    private var webView: WKWebView?
+    private var navController: UINavigationController?
+    private var importWebView: WKWebView?
 
     @objc func open(_ call: CAPPluginCall) {
-        guard let urlStr = call.getString("url"), let url = URL(string: urlStr) else {
+        guard let urlStr = call.getString("url"),
+              let url = URL(string: urlStr) else {
             call.reject("Invalid URL")
             return
         }
 
-        self.pendingCall = call
+        pendingCall = call
 
         DispatchQueue.main.async {
             let config = WKWebViewConfiguration()
@@ -30,8 +31,7 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
 
             let wv = WKWebView(frame: .zero, configuration: config)
             wv.allowsBackForwardNavigationGestures = true
-            wv.navigationDelegate = nil
-            self.webView = wv
+            self.importWebView = wv
 
             let vc = UIViewController()
             vc.view.backgroundColor = .systemBackground
@@ -61,7 +61,7 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
 
             let nav = UINavigationController(rootViewController: vc)
             nav.modalPresentationStyle = .fullScreen
-            self.nav = nav
+            self.navController = nav
 
             self.bridge?.viewController?.present(nav, animated: true)
 
@@ -80,22 +80,18 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc private func onImport() {
-        guard let wv = self.webView else {
-            self.pendingCall?.reject("WebView not ready")
-            self.pendingCall = nil
+        guard let wv = importWebView else {
+            pendingCall?.reject("WebView not ready")
+            pendingCall = nil
             return
         }
 
-        // Prefer <pre> if present (GameFAQs print view), else body text.
         let js = """
         (function(){
-          function pick(){
-            var pre = document.querySelector('pre');
-            if (pre && pre.innerText && pre.innerText.trim().length) return pre.innerText;
-            if (document.body && document.body.innerText) return document.body.innerText;
-            return '';
-          }
-          return pick();
+          var pre = document.querySelector('pre');
+          if (pre && pre.innerText && pre.innerText.trim().length) return pre.innerText;
+          if (document.body && document.body.innerText) return document.body.innerText;
+          return '';
         })();
         """
 
@@ -118,11 +114,9 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func cleanup() {
         DispatchQueue.main.async {
-            if let nav = self.nav {
-                nav.dismiss(animated: true)
-            }
-            self.nav = nil
-            self.webView = nil
+            self.navController?.dismiss(animated: true)
+            self.navController = nil
+            self.importWebView = nil
         }
     }
 }
