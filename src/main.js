@@ -6,6 +6,9 @@ import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
 
+// Import pako for compression
+import pako from 'pako';
+
 // Viewport fix: Ensure proper viewport after modal dismissals
 function resetViewport() {
   const viewport = document.querySelector('meta[name="viewport"]');
@@ -95,48 +98,40 @@ app.innerHTML = `
         <div id="exportPane" style="margin-top:16px;">
           <h2>Export</h2>
           <p class="help-text">
-            Generates a code containing all your saved guides. Copy it to another device and import there.
+            Download a compressed file containing all your guides. Import it on another device.
           </p>
 
           <div class="button-group">
-            <button id="btnGenerateExport">Generate Export Code</button>
-            <button class="secondary" id="btnCopyExport" disabled>Copy</button>
+            <button id="btnDownloadExport">📥 Download Export File</button>
           </div>
 
           <div class="selection-info">
-            <strong>Guides:</strong> <span id="exportCount">0</span><br>
-            <strong>SHA-256:</strong> <span id="exportHash">—</span>
+            <strong>Guides to export:</strong> <span id="exportCount">0</span>
           </div>
-
-          <label>Export Code:</label>
-          <textarea id="exportCode" class="codebox" readonly placeholder="Click 'Generate Export Code'"></textarea>
         </div>
 
         <div id="importPane" style="margin-top:16px; display:none;">
           <h2>Import</h2>
           <p class="help-text">
-            Paste an export code here. Then choose whether to replace or merge with your current guides.
+            Select the export file (.ggm) you downloaded from another device.
           </p>
 
-          <label>Paste Export Code:</label>
-          <textarea id="importCode" class="codebox" placeholder="Paste code here..."></textarea>
-
+          <input type="file" id="importFileInput" accept=".ggm" style="display:none">
+          
           <div class="button-group">
-            <button id="btnValidateImport">Validate</button>
-            <button class="secondary" id="btnClearImport">Clear</button>
+            <button id="btnSelectImportFile">📤 Select Import File</button>
           </div>
 
           <div id="importStatus"></div>
 
           <div id="importActions" style="display:none; margin-top:16px;">
             <div class="selection-info">
-              <strong>Import contains:</strong> <span id="importGuideCount">0</span> guides<br>
-              <strong>SHA-256:</strong> <span id="importHash">—</span>
+              <strong>Import contains:</strong> <span id="importGuideCount">0</span> guides
             </div>
 
             <div class="button-group">
-              <button class="danger" id="btnImportReplace">Delete all current saved guides and import</button>
-              <button id="btnImportMerge">Keep current saved guides and import</button>
+              <button class="danger" id="btnImportReplace">Delete all current guides and import</button>
+              <button id="btnImportMerge">Keep current guides and import</button>
             </div>
           </div>
         </div>
@@ -272,12 +267,12 @@ app.innerHTML = `
     </div>
 
     <div id="readerScreen" class="screen">
-      <div class="button-group">
+      <div class="button-group" id="readerButtonGroup">
         <button id="backToGuides">← Back to Guides</button>
-        <button class="secondary" id="btnFullscreen">⛶ Fullscreen</button>
-        <button class="secondary" id="btnTheme">🎨 Theme</button>
-        <button class="secondary" id="btnWordColors">🖍️ Word Colors</button>
-        <button class="danger" id="btnDelete">🗑️ Delete Guide</button>
+        <button class="secondary btn-fixed-width" id="btnFullscreen">⛶ Fullscreen</button>
+        <button class="secondary btn-fixed-width" id="btnTheme">🎨 Theme</button>
+        <button class="secondary" id="btnWordColors">🖍️ Colors</button>
+        <button class="danger" id="btnDelete">🗑️ Delete</button>
       </div>
 
       <div class="reader-container" id="readerContainer">
@@ -591,7 +586,7 @@ async function deleteSelectedGuides() {
 }
 
 /* -----------------------------
-   Import / Export
+   Import / Export (FILE-BASED with COMPRESSION)
 --------------------------------*/
 function setTab(which) {
   const exportPane = document.getElementById('exportPane');
@@ -611,7 +606,6 @@ function setTab(which) {
     tabImport.disabled = true;
   }
   
-  // Reset viewport when switching tabs
   resetViewport();
 }
 
@@ -628,35 +622,7 @@ function showImportActions(show) {
   document.getElementById('importActions').style.display = show ? 'block' : 'none';
 }
 
-function base64UrlEncodeBytes(bytes) {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    const slice = bytes.subarray(i, i + chunk);
-    binary += String.fromCharCode(...slice);
-  }
-  const b64 = btoa(binary);
-  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-}
-
-function base64UrlDecodeToBytes(b64url) {
-  const b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
-  const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
-  const bin = atob(b64 + pad);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
-}
-
-async function sha256Hex(str) {
-  const enc = new TextEncoder();
-  const data = enc.encode(str);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  const arr = Array.from(new Uint8Array(digest));
-  return arr.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-async function generateExportCode() {
+async function downloadExportFile() {
   const guides = await bridge.readGuides();
 
   const data = {
@@ -667,105 +633,70 @@ async function generateExportCode() {
   };
 
   const json = JSON.stringify(data);
-  const hashHex = await sha256Hex(json);
-  const bytes = new TextEncoder().encode(json);
-  const payload = base64UrlEncodeBytes(bytes);
-
-  const code = `GGM1:${payload}:${hashHex}`;
-
-  document.getElementById('exportCode').value = code;
-  document.getElementById('exportHash').textContent = hashHex;
-  document.getElementById('exportCount').textContent = String(guides.length);
-  document.getElementById('btnCopyExport').disabled = !code;
   
-  // Reset viewport after generation
+  // Compress the JSON data
+  const compressed = pako.gzip(json);
+  
+  // Create blob and download
+  const blob = new Blob([compressed], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `guides-export-${new Date().toISOString().split('T')[0]}.ggm`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  showToast('Downloaded', `Export file created with ${guides.length} guide${guides.length === 1 ? '' : 's'}`);
   resetViewport();
 }
 
-async function copyExportCode() {
-  const ta = document.getElementById('exportCode');
-  const value = ta.value || '';
-  if (!value) return;
-
-  try {
-    await navigator.clipboard.writeText(value);
-    showToast('Copied', 'Export code copied');
-    return;
-  } catch {
-    ta.focus();
-    ta.select();
-    try {
-      document.execCommand('copy');
-      showToast('Copied', 'Export code copied');
-    } catch {
-      showToast('Copy', 'Select All and copy manually');
-    }
-  }
+function selectImportFile() {
+  document.getElementById('importFileInput').click();
 }
 
-async function validateImportCode() {
-  const raw = (document.getElementById('importCode').value || '').trim();
+async function handleImportFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
   pendingImport = null;
   showImportActions(false);
-  setImportStatus('');
-
-  if (!raw) {
-    setImportStatus(`<div class="error"><strong>❌ Paste an export code first.</strong></div>`);
-    return;
-  }
-
-  const parts = raw.split(':');
-  if (parts.length !== 3 || parts[0] !== 'GGM1') {
-    setImportStatus(`<div class="error"><strong>❌ Invalid format.</strong><br>Expected: <code>GGM1:&lt;payload&gt;:&lt;sha256&gt;</code></div>`);
-    return;
-  }
-
-  const payload = parts[1];
-  const hashHex = parts[2];
+  setImportStatus('<div class="loading">Reading file...</div>');
 
   try {
-    const bytes = base64UrlDecodeToBytes(payload);
-    const json = new TextDecoder().decode(bytes);
-
-    const computed = await sha256Hex(json);
-    if (computed !== hashHex) {
-      setImportStatus(`<div class="error"><strong>❌ Hash mismatch.</strong><br>Code may be corrupted or incomplete.</div>`);
-      return;
-    }
-
-    const data = JSON.parse(json);
+    const arrayBuffer = await file.arrayBuffer();
+    const compressed = new Uint8Array(arrayBuffer);
+    
+    // Decompress
+    const decompressed = pako.ungzip(compressed, { to: 'string' });
+    
+    const data = JSON.parse(decompressed);
 
     if (!data || data.v !== 1 || data.app !== 'ggm' || !Array.isArray(data.guides)) {
-      setImportStatus(`<div class="error"><strong>❌ Unsupported export data.</strong></div>`);
+      setImportStatus(`<div class="error"><strong>❌ Invalid export file.</strong></div>`);
       return;
     }
 
-    pendingImport = { data, hashHex, guideCount: data.guides.length };
+    pendingImport = { data, guideCount: data.guides.length };
 
     setImportStatus(`
       <div class="success">
-        <strong>✓ Valid export code</strong><br>
+        <strong>✓ Valid export file</strong><br>
         Exported: ${escapeHtml(String(data.exportedAt || ''))}<br>
         Guides: ${data.guides.length}
       </div>
     `);
 
     document.getElementById('importGuideCount').textContent = String(data.guides.length);
-    document.getElementById('importHash').textContent = hashHex;
     showImportActions(true);
   } catch (e) {
-    setImportStatus(`<div class="error"><strong>❌ Failed to parse import.</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
+    setImportStatus(`<div class="error"><strong>❌ Failed to read file.</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
   }
   
-  // Reset viewport after validation
-  resetViewport();
-}
-
-function clearImportUI() {
-  document.getElementById('importCode').value = '';
-  setImportStatus('');
-  showImportActions(false);
-  pendingImport = null;
+  // Clear file input
+  event.target.value = '';
   resetViewport();
 }
 
@@ -791,7 +722,9 @@ async function importReplaceAll() {
   await bridge.writeGuides(imported);
   showToast('Imported', `Imported ${imported.length} guides`);
   await updateGuideCount();
-  clearImportUI();
+  pendingImport = null;
+  showImportActions(false);
+  setImportStatus('');
   await showScreen('mainScreen');
 }
 
@@ -822,7 +755,9 @@ async function importMergeKeepCurrent() {
 
   showToast('Imported', `Imported ${imported.length} guides (merged)`);
   await updateGuideCount();
-  clearImportUI();
+  pendingImport = null;
+  showImportActions(false);
+  setImportStatus('');
   await showScreen('mainScreen');
 }
 
@@ -1010,7 +945,6 @@ function openPreview() {
 function updatePreviewProgress() {
   const c = document.getElementById('previewContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
-  // FIX: If no scroll needed (short guide), progress should be 100%
   const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
   setPreviewProgressUI(progress);
 }
@@ -1078,7 +1012,6 @@ async function loadFromUrl() {
     loadingDiv.style.display = 'none';
     errorDiv.innerHTML = `<div class="success">✓ Loaded successfully!</div>`;
     
-    // Reset viewport after successful load
     resetViewport();
     
     setTimeout(() => (errorDiv.innerHTML = ''), 2500);
@@ -1199,12 +1132,10 @@ async function openGuide(id) {
   const guide = guides.find(g => g.id === id);
   if (!guide) return;
 
-  // Load word colors
   wordColors = guide.wordColors || {};
 
   document.getElementById('readerTitle').textContent = guide.name;
   
-  // Apply word highlighting
   applyWordHighlights(guide.content);
 
   setProgressUI(guide.progress);
@@ -1223,20 +1154,16 @@ function applyWordHighlights(content) {
   const readerContent = document.getElementById('readerContent');
   
   if (!Object.keys(wordColors).length) {
-    // No highlights, just plain text
     readerContent.textContent = content;
     return;
   }
 
-  // Create HTML with highlighted words
   let html = escapeHtml(content);
   
-  // Sort words by length (longest first) to avoid partial matches
   const sortedWords = Object.keys(wordColors).sort((a, b) => b.length - a.length);
   
   for (const word of sortedWords) {
     const color = wordColors[word];
-    // Use word boundaries to match whole words only
     const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
     html = html.replace(regex, `<span style="background-color: ${color}; padding: 2px 4px; border-radius: 3px;">$&</span>`);
@@ -1250,7 +1177,6 @@ async function updateReadingProgress() {
 
   const c = document.getElementById('readerContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
-  // FIX: If no scroll needed (short guide), progress should be 100%
   const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
 
   setProgressUI(progress);
@@ -1271,7 +1197,7 @@ function setProgressUI(progress) {
 function closeReader() {
   currentGuideId = null;
   wordColors = {};
-  exitFullscreen();
+  if (isFullscreen) exitFullscreen();
   showScreen('savedScreen');
 }
 
@@ -1294,7 +1220,7 @@ async function deleteCurrentGuide() {
   currentGuideId = null;
   wordColors = {};
   await updateGuideCount();
-  exitFullscreen();
+  if (isFullscreen) exitFullscreen();
   await showScreen('savedScreen');
 }
 
@@ -1305,7 +1231,7 @@ async function updateGuideCount() {
 }
 
 /* -----------------------------
-   Fullscreen Mode
+   Fullscreen Mode (FIXED)
 --------------------------------*/
 function toggleFullscreen() {
   if (isFullscreen) {
@@ -1318,27 +1244,33 @@ function toggleFullscreen() {
 function enterFullscreen() {
   isFullscreen = true;
   document.body.classList.add('fullscreen');
-  document.getElementById('btnFullscreen').textContent = '⛶ Exit Fullscreen';
   
-  // Hide all buttons except fullscreen, theme, and word colors
-  const buttons = document.querySelector('#readerScreen .button-group').children;
-  for (const btn of buttons) {
-    if (btn.id !== 'btnFullscreen' && btn.id !== 'btnTheme' && btn.id !== 'btnWordColors') {
-      btn.style.display = 'none';
+  // Update button text
+  const btn = document.getElementById('btnFullscreen');
+  btn.textContent = '⛶ Exit';
+  
+  // Hide other buttons (but keep the container visible)
+  const buttonGroup = document.getElementById('readerButtonGroup');
+  Array.from(buttonGroup.children).forEach(button => {
+    if (button.id !== 'btnFullscreen' && button.id !== 'btnTheme' && button.id !== 'btnWordColors') {
+      button.style.display = 'none';
     }
-  }
+  });
 }
 
 function exitFullscreen() {
   isFullscreen = false;
   document.body.classList.remove('fullscreen');
-  document.getElementById('btnFullscreen').textContent = '⛶ Fullscreen';
+  
+  // Update button text
+  const btn = document.getElementById('btnFullscreen');
+  btn.textContent = '⛶ Fullscreen';
   
   // Show all buttons again
-  const buttons = document.querySelector('#readerScreen .button-group').children;
-  for (const btn of buttons) {
-    btn.style.display = '';
-  }
+  const buttonGroup = document.getElementById('readerButtonGroup');
+  Array.from(buttonGroup.children).forEach(button => {
+    button.style.display = '';
+  });
 }
 
 /* -----------------------------
@@ -1353,14 +1285,16 @@ function cycleTheme() {
   const container = document.getElementById('readerContainer');
   container.className = 'reader-container';
   
+  const btn = document.getElementById('btnTheme');
+  
   if (readerTheme === 'light') {
     container.classList.add('theme-light');
-    document.getElementById('btnTheme').textContent = '🎨 Light';
+    btn.textContent = '🎨 Light';
   } else if (readerTheme === 'contrast') {
     container.classList.add('theme-contrast');
-    document.getElementById('btnTheme').textContent = '🎨 High Contrast';
+    btn.textContent = '🎨 Contrast';
   } else {
-    document.getElementById('btnTheme').textContent = '🎨 Dark';
+    btn.textContent = '🎨 Dark';
   }
 }
 
@@ -1401,7 +1335,6 @@ function refreshWordColorsList() {
     </div>
   `).join('');
   
-  // Add remove handlers
   list.querySelectorAll('.word-color-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       const word = btn.dataset.word;
@@ -1447,7 +1380,7 @@ async function saveWordColors() {
 function reapplyContent() {
   if (!currentGuideId) return;
   
-  const guides = bridge.readGuides().then(guides => {
+  bridge.readGuides().then(guides => {
     const guide = guides.find(g => g.id === currentGuideId);
     if (guide) {
       applyWordHighlights(guide.content);
@@ -1596,15 +1529,13 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
-// IO
+// Import/Export - FILE BASED
 document.getElementById('tabExport').addEventListener('click', () => setTab('export'));
 document.getElementById('tabImport').addEventListener('click', () => setTab('import'));
 
-document.getElementById('btnGenerateExport').addEventListener('click', generateExportCode);
-document.getElementById('btnCopyExport').addEventListener('click', copyExportCode);
-
-document.getElementById('btnValidateImport').addEventListener('click', validateImportCode);
-document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
+document.getElementById('btnDownloadExport').addEventListener('click', downloadExportFile);
+document.getElementById('btnSelectImportFile').addEventListener('click', selectImportFile);
+document.getElementById('importFileInput').addEventListener('change', handleImportFile);
 
 document.getElementById('btnImportReplace').addEventListener('click', importReplaceAll);
 document.getElementById('btnImportMerge').addEventListener('click', importMergeKeepCurrent);
@@ -1613,7 +1544,6 @@ setTab('export');
 
 updateGuideCount();
 
-// Listen for resize/orientation changes and reset viewport
 window.addEventListener('resize', resetViewport);
 window.addEventListener('orientationchange', () => {
   setTimeout(resetViewport, 100);
