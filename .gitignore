@@ -1,0 +1,47 @@
+# --- Node / Vite ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+.vite/
+coverage/
+
+# --- Electron build output ---
+release/
+out/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.zip
+
+# --- Capacitor native builds (recommended to ignore) ---
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+ios/DerivedData/
+ios/App/build/
+
+# CocoaPods
+ios/App/Pods/
+ios/App/Podfile.lock
+
+# Xcode user state
+ios/App/*.xcuserstate
+ios/App/**/xcuserdata/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# OS junk
+.DS_Store
+Thumbs.db
