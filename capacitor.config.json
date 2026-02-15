@@ -1,6 +1,6 @@
 {
   "appId": "com.eerie.guidemanager",
-  "appName": "Videogame Guide Manager",
+  "appName": "Reading Manager",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "plugins": {

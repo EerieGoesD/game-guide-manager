@@ -1,4 +1,4 @@
-/* styles.css (fixed for iOS/Android safe areas + footer 2 lines + sticky header safe-area) */
+/* C:\Users\eerie\Documents\GitHub\game-guide-manager\src\style.css */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -48,7 +48,7 @@ h2 { color: #66c0f4; margin-bottom: 10px; font-size: 20px; }
 .menu-button h3 { color: #66c0f4; font-size: 24px; margin-bottom: 10px; }
 .menu-button p { color: #8b929a; font-size: 16px; }
 
-input[type="text"], input[type="file"], textarea, input[type="number"] {
+input[type="text"], input[type="file"], textarea, input[type="number"], input[type="color"] {
   background: #32455e;
   border: 2px solid #417a9b;
   color: #c7d5e0;
@@ -58,6 +58,12 @@ input[type="text"], input[type="file"], textarea, input[type="number"] {
   margin-bottom: 12px;
   border-radius: 6px;
   font-family: inherit;
+}
+
+input[type="color"] {
+  height: 50px;
+  cursor: pointer;
+  padding: 4px;
 }
 
 textarea {
@@ -177,6 +183,91 @@ label { display: block; color: #66c0f4; margin-bottom: 5px; font-weight: bold; f
   word-wrap: break-word;
   max-height: 70vh;
   overflow-y: auto;
+}
+
+/* Full-screen mode */
+body.fullscreen {
+  padding: 0;
+}
+
+body.fullscreen .reader-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  border-radius: 0;
+  z-index: 9999;
+}
+
+body.fullscreen .reader-header {
+  top: 0;
+}
+
+body.fullscreen .reader-content {
+  max-height: none;
+  height: calc(100vh - 100px);
+  padding: 40px;
+  padding-top: calc(40px + env(safe-area-inset-top, 0px));
+  padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Reading themes */
+.reader-container.theme-light {
+  background: #ffffff;
+  border-color: #cccccc;
+}
+
+.reader-container.theme-light .reader-header {
+  background: #f0f0f0;
+  border-bottom-color: #cccccc;
+}
+
+.reader-container.theme-light .reader-title {
+  color: #1b2838;
+}
+
+.reader-container.theme-light .reader-progress-bar {
+  background: #e0e0e0;
+}
+
+.reader-container.theme-light .reader-progress-text {
+  color: #1b2838;
+}
+
+.reader-container.theme-light .reader-content {
+  background: #ffffff;
+  color: #000000;
+}
+
+.reader-container.theme-contrast {
+  background: #000000;
+  border-color: #ffffff;
+}
+
+.reader-container.theme-contrast .reader-header {
+  background: #000000;
+  border-bottom-color: #ffffff;
+}
+
+.reader-container.theme-contrast .reader-title {
+  color: #ffffff;
+}
+
+.reader-container.theme-contrast .reader-progress-bar {
+  background: #333333;
+}
+
+.reader-container.theme-contrast .reader-progress-text {
+  color: #ffffff;
+}
+
+.reader-container.theme-contrast .reader-content {
+  background: #000000;
+  color: #ffffff;
 }
 
 #editContent { min-height: 520px; }
@@ -412,9 +503,72 @@ label { display: block; color: #66c0f4; margin-bottom: 5px; font-weight: bold; f
   color: #66c0f4;
 }
 
+/* Word highlighting settings modal */
+.word-colors-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 10px;
+}
+
+.word-color-item {
+  background: #1b2838;
+  padding: 10px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.word-color-sample {
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  border: 2px solid #417a9b;
+}
+
+.word-color-text {
+  flex: 1;
+  font-family: 'Consolas', monospace;
+  color: #c7d5e0;
+}
+
+.word-color-remove {
+  padding: 6px 12px;
+  font-size: 14px;
+  margin: 0;
+}
+
+.word-highlight-form {
+  background: #1b2838;
+  padding: 12px;
+  border-radius: 6px;
+  margin-top: 10px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-bottom: 10px;
+}
+
+.form-row input {
+  margin-bottom: 0;
+}
+
+.form-row button {
+  margin: 0;
+}
+
 /* Mobile tweaks */
 @media (max-width: 520px) {
   .menu-button { padding: 22px; }
   h1 { font-size: 24px; }
   .reader-content { padding: 18px; }
+  body.fullscreen .reader-content {
+    padding: 20px;
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  }
 }

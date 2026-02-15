@@ -1,10 +1,13 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\guidemanager\InteractiveImportActivity.java
 package com.eerie.guidemanager;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.TypedValue;
+import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -13,6 +16,7 @@ import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.json.JSONArray;
@@ -33,6 +37,9 @@ public class InteractiveImportActivity extends AppCompatActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
 
+    // Enable edge-to-edge display
+    WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
     String url = getIntent().getStringExtra("url");
     if (url == null) url = "";
 
@@ -43,12 +50,13 @@ public class InteractiveImportActivity extends AppCompatActivity {
       ViewGroup.LayoutParams.MATCH_PARENT,
       ViewGroup.LayoutParams.MATCH_PARENT
     ));
+    root.setFitsSystemWindows(true);
 
     // Top bar
     LinearLayout bar = new LinearLayout(this);
     bar.setOrientation(LinearLayout.HORIZONTAL);
 
-    // Base padding (we’ll add status-bar inset on top dynamically)
+    // Base padding
     final int padH = dp(16);
     final int padV = dp(12);
     bar.setPadding(padH, padV, padH, padV);
@@ -61,8 +69,12 @@ public class InteractiveImportActivity extends AppCompatActivity {
 
     LinearLayout.LayoutParams lp =
       new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+    lp.setMargins(0, 0, dp(8), 0);
     bar.addView(cancel, lp);
-    bar.addView(importBtn, lp);
+    
+    LinearLayout.LayoutParams lp2 =
+      new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+    bar.addView(importBtn, lp2);
 
     // WebView
     webView = new WebView(this);
@@ -77,13 +89,19 @@ public class InteractiveImportActivity extends AppCompatActivity {
 
     setContentView(root);
 
-    // Apply safe-area / status-bar insets so bar is BELOW system icons
+    // Apply window insets properly
     ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
       int topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
+      int bottomInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+      
+      // Add top inset to bar padding
       bar.setPadding(padH, padV + topInset, padH, padV);
-      return insets;
+      
+      // Add bottom inset to webview
+      webView.setPadding(0, 0, 0, bottomInset);
+      
+      return WindowInsetsCompat.CONSUMED;
     });
-    ViewCompat.requestApplyInsets(root);
 
     WebSettings s = webView.getSettings();
     s.setJavaScriptEnabled(true);

@@ -1,3 +1,4 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\vite.config.js
 import { defineConfig } from 'vite';
 
 export default defineConfig({

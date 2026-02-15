@@ -1,4 +1,4 @@
-// electron/main.cjs
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\electron\main.cjs
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');

@@ -1,3 +1,4 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\ios\App\App\AppDelegate.swift
 import UIKit
 import Capacitor
 

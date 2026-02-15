@@ -1,5 +1,5 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\src\htmlToText.js
 export function normalizeGuideUrl(url) {
-  // For GameFAQs, try printable view (?print=1), which is often the plain text format.
   try {
     const u = new URL(url);
     if (u.hostname.includes('gamefaqs.gamespot.com')) {

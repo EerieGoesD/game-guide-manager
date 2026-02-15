@@ -1,3 +1,4 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\ios\App\App\InteractiveImportPlugin.swift
 import Foundation
 import Capacitor
 import WebKit
@@ -60,7 +61,14 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
             ])
 
             let nav = UINavigationController(rootViewController: vc)
-            nav.modalPresentationStyle = .fullScreen
+            
+            // Fix: Use pageSheet instead of fullScreen to preserve parent view's layout
+            if #available(iOS 13.0, *) {
+                nav.modalPresentationStyle = .pageSheet
+            } else {
+                nav.modalPresentationStyle = .formSheet
+            }
+            
             self.navController = nav
 
             self.bridge?.viewController?.present(nav, animated: true)
@@ -106,15 +114,32 @@ public class InteractiveImportPlugin: CAPPlugin, CAPBridgedPlugin {
 
                 let text = (result as? String) ?? ""
                 self.cleanup()
-                self.pendingCall?.resolve(["text": text])
-                self.pendingCall = nil
+                
+                // Fix: Add a small delay to ensure proper layout reset
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    self.pendingCall?.resolve(["text": text])
+                    self.pendingCall = nil
+                    
+                    // Force viewport recalculation in the web view
+                    if let webView = self.bridge?.webView {
+                        webView.setNeedsLayout()
+                        webView.layoutIfNeeded()
+                    }
+                }
             }
         }
     }
 
     private func cleanup() {
         DispatchQueue.main.async {
-            self.navController?.dismiss(animated: true)
+            self.navController?.dismiss(animated: true) {
+                // Force layout update after dismissal
+                if let webView = self.bridge?.webView {
+                    webView.scrollView.contentInsetAdjustmentBehavior = .automatic
+                    webView.setNeedsLayout()
+                    webView.layoutIfNeeded()
+                }
+            }
             self.navController = nil
             self.importWebView = nil
         }

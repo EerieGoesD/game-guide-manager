@@ -1,3 +1,4 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\guidemanager\MainActivity.java
 package com.eerie.guidemanager;
 
 import android.os.Bundle;

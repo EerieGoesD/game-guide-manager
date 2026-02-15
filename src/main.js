@@ -1,9 +1,18 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\src\main.js
 import './style.css';
 import { getBridge } from './bridge.js';
 import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
+
+// Viewport fix: Ensure proper viewport after modal dismissals
+function resetViewport() {
+  const viewport = document.querySelector('meta[name="viewport"]');
+  if (viewport) {
+    viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover');
+  }
+}
 
 (async () => {
   if (Capacitor?.isNativePlatform?.()) {
@@ -29,6 +38,11 @@ let pendingImport = null; // { data, hashHex, guideCount }
 // Saved-guides selection mode
 let selectMode = false;
 let selectedGuideIds = new Set();
+
+// Reader state
+let isFullscreen = false;
+let readerTheme = 'dark'; // 'dark', 'light', 'contrast'
+let wordColors = {}; // { word: color }
 
 const app = document.getElementById('app');
 
@@ -260,10 +274,13 @@ app.innerHTML = `
     <div id="readerScreen" class="screen">
       <div class="button-group">
         <button id="backToGuides">← Back to Guides</button>
+        <button class="secondary" id="btnFullscreen">⛶ Fullscreen</button>
+        <button class="secondary" id="btnTheme">🎨 Theme</button>
+        <button class="secondary" id="btnWordColors">🖍️ Word Colors</button>
         <button class="danger" id="btnDelete">🗑️ Delete Guide</button>
       </div>
 
-      <div class="reader-container">
+      <div class="reader-container" id="readerContainer">
         <div class="reader-header">
           <div class="reader-title" id="readerTitle"></div>
           <div class="reader-progress">
@@ -295,21 +312,48 @@ app.innerHTML = `
       </div>
     </div>
 
-  <!-- Support modal (startup) -->
-  <div id="supportModal" class="modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="supportTitle">
-    <div class="modal-card modal-compact">
-      <button class="modal-x" id="supportClose" aria-label="Close">×</button>
+    <!-- Word colors modal -->
+    <div id="wordColorsModal" class="modal" style="display:none" role="dialog" aria-modal="true">
+      <div class="modal-card">
+        <div class="modal-title">Word Highlighting</div>
+        <div class="modal-body">
+          <p class="help-text">Assign colors to specific words in your guide. All instances of the word will be highlighted.</p>
+          
+          <div class="word-highlight-form">
+            <div class="form-row">
+              <div style="flex: 1;">
+                <label>Word to highlight:</label>
+                <input type="text" id="wordInput" placeholder="Enter word...">
+              </div>
+              <div>
+                <label>Color:</label>
+                <input type="color" id="colorInput" value="#ffff00">
+              </div>
+            </div>
+            <button id="btnAddWordColor">Add Highlight</button>
+          </div>
 
-  <div class="modal-title" id="supportTitle">Support</div>
-
-  <div class="modal-body" id="supportBody">
-    Made by EERIE<br>
-    <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
-      Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
-    </a>
-  </div>
+          <div class="word-colors-list" id="wordColorsList"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" id="wordColorsClose">Close</button>
+        </div>
+      </div>
     </div>
-  </div>
+
+    <!-- Support modal (startup) -->
+    <div id="supportModal" class="modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="supportTitle">
+      <div class="modal-card modal-compact">
+        <button class="modal-x" id="supportClose" aria-label="Close">×</button>
+        <div class="modal-title" id="supportTitle">Support</div>
+        <div class="modal-body" id="supportBody">
+          Made by EERIE<br>
+          <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
+            Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
+          </a>
+        </div>
+      </div>
+    </div>
 
   </div>
 `;
@@ -454,6 +498,9 @@ async function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
 
+  // Reset viewport on screen change (fixes layout issues)
+  resetViewport();
+
   if (screenId === 'savedScreen') {
     await loadSavedGuides();
     updateSelectDeleteUI();
@@ -563,6 +610,9 @@ function setTab(which) {
     tabExport.disabled = false;
     tabImport.disabled = true;
   }
+  
+  // Reset viewport when switching tabs
+  resetViewport();
 }
 
 async function refreshExportMetaOnly() {
@@ -627,6 +677,9 @@ async function generateExportCode() {
   document.getElementById('exportHash').textContent = hashHex;
   document.getElementById('exportCount').textContent = String(guides.length);
   document.getElementById('btnCopyExport').disabled = !code;
+  
+  // Reset viewport after generation
+  resetViewport();
 }
 
 async function copyExportCode() {
@@ -703,6 +756,9 @@ async function validateImportCode() {
   } catch (e) {
     setImportStatus(`<div class="error"><strong>❌ Failed to parse import.</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
   }
+  
+  // Reset viewport after validation
+  resetViewport();
 }
 
 function clearImportUI() {
@@ -710,6 +766,7 @@ function clearImportUI() {
   setImportStatus('');
   showImportActions(false);
   pendingImport = null;
+  resetViewport();
 }
 
 function makeUniqueId(existing) {
@@ -727,7 +784,8 @@ async function importReplaceAll() {
     name: String(g.name || 'Untitled'),
     content: String(g.content || ''),
     progress: Number(g.progress) || 0,
-    dateAdded: String(g.dateAdded || new Date().toISOString())
+    dateAdded: String(g.dateAdded || new Date().toISOString()),
+    wordColors: g.wordColors || {}
   }));
 
   await bridge.writeGuides(imported);
@@ -749,7 +807,8 @@ async function importMergeKeepCurrent() {
       name: String(g.name || 'Untitled'),
       content: String(g.content || ''),
       progress: Number(g.progress) || 0,
-      dateAdded: String(g.dateAdded || new Date().toISOString())
+      dateAdded: String(g.dateAdded || new Date().toISOString()),
+      wordColors: g.wordColors || {}
     };
 
     if (!obj.id || existingIds.has(obj.id)) obj.id = makeUniqueId(existingIds);
@@ -951,7 +1010,8 @@ function openPreview() {
 function updatePreviewProgress() {
   const c = document.getElementById('previewContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
-  const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 0;
+  // FIX: If no scroll needed (short guide), progress should be 100%
+  const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
   setPreviewProgressUI(progress);
 }
 
@@ -1017,8 +1077,11 @@ async function loadFromUrl() {
 
     loadingDiv.style.display = 'none';
     errorDiv.innerHTML = `<div class="success">✓ Loaded successfully!</div>`;
+    
+    // Reset viewport after successful load
+    resetViewport();
+    
     setTimeout(() => (errorDiv.innerHTML = ''), 2500);
-
     proceedToTrim();
   } catch (err) {
     loadingDiv.style.display = 'none';
@@ -1053,7 +1116,8 @@ async function finalSaveGuide() {
     name,
     content,
     progress: 0,
-    dateAdded: new Date().toISOString()
+    dateAdded: new Date().toISOString(),
+    wordColors: {}
   });
 
   await bridge.writeGuides(guides);
@@ -1135,8 +1199,13 @@ async function openGuide(id) {
   const guide = guides.find(g => g.id === id);
   if (!guide) return;
 
+  // Load word colors
+  wordColors = guide.wordColors || {};
+
   document.getElementById('readerTitle').textContent = guide.name;
-  document.getElementById('readerContent').textContent = guide.content;
+  
+  // Apply word highlighting
+  applyWordHighlights(guide.content);
 
   setProgressUI(guide.progress);
 
@@ -1150,12 +1219,39 @@ async function openGuide(id) {
   }, 50);
 }
 
+function applyWordHighlights(content) {
+  const readerContent = document.getElementById('readerContent');
+  
+  if (!Object.keys(wordColors).length) {
+    // No highlights, just plain text
+    readerContent.textContent = content;
+    return;
+  }
+
+  // Create HTML with highlighted words
+  let html = escapeHtml(content);
+  
+  // Sort words by length (longest first) to avoid partial matches
+  const sortedWords = Object.keys(wordColors).sort((a, b) => b.length - a.length);
+  
+  for (const word of sortedWords) {
+    const color = wordColors[word];
+    // Use word boundaries to match whole words only
+    const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
+    html = html.replace(regex, `<span style="background-color: ${color}; padding: 2px 4px; border-radius: 3px;">$&</span>`);
+  }
+  
+  readerContent.innerHTML = html;
+}
+
 async function updateReadingProgress() {
   if (currentGuideId == null) return;
 
   const c = document.getElementById('readerContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
-  const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 0;
+  // FIX: If no scroll needed (short guide), progress should be 100%
+  const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
 
   setProgressUI(progress);
 
@@ -1174,6 +1270,8 @@ function setProgressUI(progress) {
 
 function closeReader() {
   currentGuideId = null;
+  wordColors = {};
+  exitFullscreen();
   showScreen('savedScreen');
 }
 
@@ -1194,7 +1292,9 @@ async function deleteCurrentGuide() {
   await bridge.writeGuides(next);
 
   currentGuideId = null;
+  wordColors = {};
   await updateGuideCount();
+  exitFullscreen();
   await showScreen('savedScreen');
 }
 
@@ -1202,6 +1302,157 @@ async function updateGuideCount() {
   const guides = await bridge.readGuides();
   const count = guides.length;
   document.getElementById('guideCount').textContent = `${count} guide${count === 1 ? '' : 's'}`;
+}
+
+/* -----------------------------
+   Fullscreen Mode
+--------------------------------*/
+function toggleFullscreen() {
+  if (isFullscreen) {
+    exitFullscreen();
+  } else {
+    enterFullscreen();
+  }
+}
+
+function enterFullscreen() {
+  isFullscreen = true;
+  document.body.classList.add('fullscreen');
+  document.getElementById('btnFullscreen').textContent = '⛶ Exit Fullscreen';
+  
+  // Hide all buttons except fullscreen, theme, and word colors
+  const buttons = document.querySelector('#readerScreen .button-group').children;
+  for (const btn of buttons) {
+    if (btn.id !== 'btnFullscreen' && btn.id !== 'btnTheme' && btn.id !== 'btnWordColors') {
+      btn.style.display = 'none';
+    }
+  }
+}
+
+function exitFullscreen() {
+  isFullscreen = false;
+  document.body.classList.remove('fullscreen');
+  document.getElementById('btnFullscreen').textContent = '⛶ Fullscreen';
+  
+  // Show all buttons again
+  const buttons = document.querySelector('#readerScreen .button-group').children;
+  for (const btn of buttons) {
+    btn.style.display = '';
+  }
+}
+
+/* -----------------------------
+   Theme Switching
+--------------------------------*/
+function cycleTheme() {
+  const themes = ['dark', 'light', 'contrast'];
+  const currentIndex = themes.indexOf(readerTheme);
+  const nextIndex = (currentIndex + 1) % themes.length;
+  readerTheme = themes[nextIndex];
+  
+  const container = document.getElementById('readerContainer');
+  container.className = 'reader-container';
+  
+  if (readerTheme === 'light') {
+    container.classList.add('theme-light');
+    document.getElementById('btnTheme').textContent = '🎨 Light';
+  } else if (readerTheme === 'contrast') {
+    container.classList.add('theme-contrast');
+    document.getElementById('btnTheme').textContent = '🎨 High Contrast';
+  } else {
+    document.getElementById('btnTheme').textContent = '🎨 Dark';
+  }
+}
+
+/* -----------------------------
+   Word Colors
+--------------------------------*/
+function showWordColorsModal() {
+  const modal = document.getElementById('wordColorsModal');
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+  
+  refreshWordColorsList();
+  
+  document.getElementById('wordInput').focus();
+}
+
+function hideWordColorsModal() {
+  const modal = document.getElementById('wordColorsModal');
+  modal.classList.remove('show');
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 200);
+}
+
+function refreshWordColorsList() {
+  const list = document.getElementById('wordColorsList');
+  
+  if (!Object.keys(wordColors).length) {
+    list.innerHTML = '<p class="help-text">No word highlights yet. Add some above!</p>';
+    return;
+  }
+  
+  list.innerHTML = Object.entries(wordColors).map(([word, color]) => `
+    <div class="word-color-item">
+      <div class="word-color-sample" style="background-color: ${color};"></div>
+      <div class="word-color-text">${escapeHtml(word)}</div>
+      <button class="danger word-color-remove" data-word="${escapeHtml(word)}">Remove</button>
+    </div>
+  `).join('');
+  
+  // Add remove handlers
+  list.querySelectorAll('.word-color-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const word = btn.dataset.word;
+      delete wordColors[word];
+      saveWordColors();
+      refreshWordColorsList();
+      reapplyContent();
+    });
+  });
+}
+
+async function addWordColor() {
+  const word = document.getElementById('wordInput').value.trim();
+  const color = document.getElementById('colorInput').value;
+  
+  if (!word) {
+    showToast('Error', 'Please enter a word');
+    return;
+  }
+  
+  wordColors[word] = color;
+  await saveWordColors();
+  
+  document.getElementById('wordInput').value = '';
+  document.getElementById('colorInput').value = '#ffff00';
+  
+  refreshWordColorsList();
+  reapplyContent();
+  showToast('Added', `Highlight added for "${word}"`);
+}
+
+async function saveWordColors() {
+  if (!currentGuideId) return;
+  
+  const guides = await bridge.readGuides();
+  const guide = guides.find(g => g.id === currentGuideId);
+  if (guide) {
+    guide.wordColors = wordColors;
+    await bridge.writeGuides(guides);
+  }
+}
+
+function reapplyContent() {
+  if (!currentGuideId) return;
+  
+  const guides = bridge.readGuides().then(guides => {
+    const guide = guides.find(g => g.id === currentGuideId);
+    if (guide) {
+      applyWordHighlights(guide.content);
+    }
+  });
 }
 
 /* -----------------------------
@@ -1275,6 +1526,21 @@ document.getElementById('backToTrim2').addEventListener('click', () => showScree
 document.getElementById('btnFinalSave').addEventListener('click', finalSaveGuide);
 document.getElementById('btnDelete').addEventListener('click', deleteCurrentGuide);
 
+// Reader controls
+document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
+document.getElementById('btnTheme').addEventListener('click', cycleTheme);
+document.getElementById('btnWordColors').addEventListener('click', showWordColorsModal);
+
+// Word colors modal
+document.getElementById('wordColorsClose').addEventListener('click', hideWordColorsModal);
+document.getElementById('btnAddWordColor').addEventListener('click', addWordColor);
+document.getElementById('wordInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addWordColor();
+  }
+});
+
 document.getElementById('previewContent').addEventListener('scroll', updatePreviewProgress);
 document.getElementById('readerContent').addEventListener('scroll', updateReadingProgress);
 
@@ -1324,6 +1590,9 @@ document.addEventListener('keydown', (e) => {
       if (e.shiftKey) findPrev();
       else findNext();
     }
+  } else if (e.key === 'Escape' && isFullscreen) {
+    e.preventDefault();
+    exitFullscreen();
   }
 }, true);
 
@@ -1343,5 +1612,11 @@ document.getElementById('btnImportMerge').addEventListener('click', importMergeK
 setTab('export');
 
 updateGuideCount();
+
+// Listen for resize/orientation changes and reset viewport
+window.addEventListener('resize', resetViewport);
+window.addEventListener('orientationchange', () => {
+  setTimeout(resetViewport, 100);
+});
 
 setTimeout(() => showSupportModal(), 0);

@@ -1,3 +1,4 @@
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\src\bridge.js
 import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
