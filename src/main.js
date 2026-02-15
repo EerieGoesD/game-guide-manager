@@ -2,6 +2,16 @@ import './style.css';
 import { getBridge } from './bridge.js';
 import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 
+import { Capacitor } from '@capacitor/core';
+import { StatusBar } from '@capacitor/status-bar';
+
+(async () => {
+  if (Capacitor?.isNativePlatform?.()) {
+    try { await StatusBar.setOverlaysWebView({ overlay: false }); } catch {}
+    try { await StatusBar.setBackgroundColor({ color: '#1b2838' }); } catch {}
+  }
+})();
+
 const bridge = getBridge();
 
 // State
@@ -990,7 +1000,8 @@ async function loadFromUrl() {
       content = await bridge.fetchUrl(target);
     } catch (e) {
       const msg = String(e?.message || e || '');
-      if (bridge.platform === 'electron' && typeof bridge.fetchUrlBrowser === 'function' && msg.includes('HTTP 403')) {
+      if (typeof bridge.fetchUrlBrowser === 'function' &&
+          (msg.includes('HTTP 403') || msg.includes('Blocked by bot protection'))) {
         content = await bridge.fetchUrlBrowser(target);
       } else {
         throw e;

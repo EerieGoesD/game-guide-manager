@@ -1,30 +1,20 @@
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 const GUIDES_FILE = 'guides.json';
 
-const UA_DESKTOP_CHROME =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const InteractiveImport = registerPlugin('InteractiveImport');
 
-const UA_IOS_SAFARI =
-  'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1';
-
-const COMMON_HEADERS = {
-  Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Cache-Control': 'no-cache',
-  Pragma: 'no-cache'
-};
-
-function looksLikeBotBlock(content) {
-  if (typeof content !== 'string') return false;
-  const t = content.toLowerCase();
+function looksLikeBotBlock(html) {
+  if (!html || typeof html !== 'string') return false;
+  const s = html.toLowerCase();
   return (
-    t.includes('_cf_chl_opt') ||
-    t.includes('challenge-platform') ||
-    t.includes('enable javascript and cookies') ||
-    t.includes('access denied') ||
-    t.includes('request blocked')
+    s.includes('_cf_chl_opt') ||
+    s.includes('challenge-platform') ||
+    s.includes('attention required') ||
+    s.includes('enable javascript and cookies to continue') ||
+    s.includes('cf-challenge') ||
+    s.includes('cloudflare')
   );
 }
 
@@ -42,28 +32,23 @@ export function getBridge() {
 
 function capacitorBridge() {
   return {
-    platform: Capacitor.getPlatform?.() || 'capacitor',
+    platform: 'capacitor',
 
     async fetchUrl(url) {
-      let res = await CapacitorHttp.request({
+      const res = await CapacitorHttp.request({
         url,
         method: 'GET',
         responseType: 'text',
-        headers: { ...COMMON_HEADERS, 'User-Agent': UA_DESKTOP_CHROME }
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (iPhone; CPU iPhone OS like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile Safari',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,text/plain;q=0.8,*/*;q=0.5',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
       });
 
-      if (res?.status === 403) {
-        res = await CapacitorHttp.request({
-          url,
-          method: 'GET',
-          responseType: 'text',
-          headers: { ...COMMON_HEADERS, 'User-Agent': UA_IOS_SAFARI }
-        });
-      }
-
-      if (!res || typeof res.status !== 'number') {
-        throw new Error('Network error (no status).');
-      }
       if (res.status >= 400) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -72,9 +57,18 @@ function capacitorBridge() {
       const text = typeof data === 'string' ? data : JSON.stringify(data);
 
       if (looksLikeBotBlock(text)) {
-        throw new Error('Blocked by bot protection (try Paste Text).');
+        throw new Error('Blocked by bot protection (try Paste text).');
       }
 
+      return text;
+    },
+
+    async fetchUrlBrowser(url) {
+      const out = await InteractiveImport.open({ url });
+      const text = (out && out.text) ? String(out.text) : '';
+      if (!text.trim()) {
+        throw new Error('Import returned empty content.');
+      }
       return text;
     },
 
@@ -85,7 +79,8 @@ function capacitorBridge() {
           directory: Directory.Data,
           encoding: Encoding.UTF8
         });
-        return JSON.parse(r.data || '[]');
+        const txt = r.data || '[]';
+        return JSON.parse(txt);
       } catch {
         return [];
       }
