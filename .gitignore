@@ -45,3 +45,16 @@ ios/App/**/xcuserdata/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Capacitor generated web assets
+android/app/src/main/assets/public/
+ios/App/App/public/
+
+# Android Studio / Gradle extras
+.gradle/
+android/.idea/
+android/.externalNativeBuild/
+android/.cxx/
+
+# Xcode extras
+*.xcuserstate
