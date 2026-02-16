@@ -24,7 +24,8 @@
     "@capacitor/filesystem": "^8.1.0",
     "@capacitor/ios": "^8.1.0",
     "@capacitor/status-bar": "^8.0.1",
-    "axios": "^1.6.2"
+    "axios": "^1.6.2",
+    "pdfjs-dist": "^5.4.624"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",

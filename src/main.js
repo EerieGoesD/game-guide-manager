@@ -3,7 +3,7 @@ import './style.css';
 import { getBridge } from './bridge.js';
 import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 import { encodeGuidesBackupToString, decodeGuidesBackupFromString } from './backup.js';
-
+import { extractTextFromPdfArrayBuffer } from './pdfToText.js';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
 import { Share } from '@capacitor/share';
@@ -175,7 +175,7 @@ app.innerHTML = `
           <button id="btnUrl" type="button">🌐 Load from URL</button>
         </div>
 
-        <input type="file" id="fileInput" accept=".txt,.text" style="display:none">
+        <input type="file" id="fileInput" accept=".txt,.text,.pdf" style="display:none">
 
         <div id="textPaster" style="display:none; margin-top: 20px;">
           <label>Paste Guide Text:</label>
@@ -960,8 +960,29 @@ function setPreviewProgressUI(progress) {
 
 /* Load sources */
 function handleFileLoad(event) {
-  const file = event.target.files[0];
+  const file = event.target.files?.[0];
   if (!file) return;
+
+  const isPdf =
+    file.type === 'application/pdf' ||
+    /\.pdf$/i.test(file.name || '');
+
+  if (isPdf) {
+    (async () => {
+      try {
+        const buf = await file.arrayBuffer();
+        const text = await extractTextFromPdfArrayBuffer(buf);
+        loadedContent = (text || '').trim();
+        if (!loadedContent) throw new Error('No text found in this PDF (it may be scanned).');
+        proceedToTrim();
+      } catch (e) {
+        alert(`PDF import failed: ${String(e?.message || e)}`);
+      }
+    })();
+    return;
+  }
+
+  // existing TXT path:
   const reader = new FileReader();
   reader.onload = (e) => {
     loadedContent = e.target.result || '';
