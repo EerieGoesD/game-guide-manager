@@ -7,6 +7,7 @@ import { extractTextFromPdfArrayBuffer } from './pdfToText.js';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
 import { Share } from '@capacitor/share';
+import { FilePicker } from '@capgo/capacitor-file-picker';
 
 // Viewport fix
 function resetViewport() {
@@ -1362,6 +1363,57 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+function base64ToUint8Array(b64) {
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+function base64ToArrayBuffer(b64) {
+  return base64ToUint8Array(b64).buffer;
+}
+
+function base64ToText(b64) {
+  const bytes = base64ToUint8Array(b64);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+async function pickFileNative() {
+  const result = await FilePicker.pickFiles({
+    types: ['application/pdf', 'text/plain'], // PDFs + text :contentReference[oaicite:2]{index=2}
+    limit: 1,
+    readData: true // return base64 :contentReference[oaicite:3]{index=3}
+  });
+
+  const f = result?.files?.[0];
+  if (!f) return;
+
+  const name = f.name || '';
+  const mime = f.mimeType || '';
+  const isPdf = mime === 'application/pdf' || /\.pdf$/i.test(name);
+
+  if (isPdf) {
+    const buf = f.data ? base64ToArrayBuffer(f.data) : null;
+    if (!buf) throw new Error('Could not read PDF data.');
+    const text = await extractTextFromPdfArrayBuffer(buf);
+    loadedContent = (text || '').trim();
+    if (!loadedContent) throw new Error('No text found in this PDF (may be scanned).');
+    proceedToTrim();
+    return;
+  }
+
+  // text/plain (or fallback)
+  if (f.data) {
+    loadedContent = base64ToText(f.data).trim();
+    if (!loadedContent) throw new Error('Text file was empty.');
+    proceedToTrim();
+    return;
+  }
+
+  throw new Error('Could not read text data.');
+}
+
 /* Wire up events */
 document.getElementById('btnLoadNew').addEventListener('click', () => showScreen('loadScreen'));
 document.getElementById('btnSaved').addEventListener('click', () => showScreen('savedScreen'));
@@ -1380,7 +1432,17 @@ document.getElementById('btnSelectDelete').addEventListener('click', () => setSe
 document.getElementById('btnCancelSelect').addEventListener('click', () => setSelectMode(false));
 document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelectedGuides);
 
-document.getElementById('btnLoadFile').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('btnLoadFile').addEventListener('click', async () => {
+  try {
+    if (Capacitor?.isNativePlatform?.() && Capacitor.getPlatform() === 'ios') {
+      await pickFileNative();
+      return;
+    }
+    document.getElementById('fileInput').click(); // web/desktop fallback
+  } catch (e) {
+    alert(`File pick failed: ${String(e?.message || e)}`);
+  }
+});
 document.getElementById('fileInput').addEventListener('change', handleFileLoad);
 
 document.getElementById('btnPaste').addEventListener('click', showTextPaster);
