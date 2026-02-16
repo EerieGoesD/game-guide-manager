@@ -175,7 +175,7 @@ app.innerHTML = `
           <button id="btnUrl" type="button">🌐 Load from URL</button>
         </div>
 
-        <input type="file" id="fileInput" accept=".txt,.text,.pdf" style="display:none">
+      <input type="file" id="fileInput" accept="application/pdf,text/plain,.pdf,.txt" style="display:none">
 
         <div id="textPaster" style="display:none; margin-top: 20px;">
           <label>Paste Guide Text:</label>
@@ -376,6 +376,14 @@ app.innerHTML = `
 
   </div>
 `;
+
+const fileInput = document.getElementById('fileInput');
+
+if (Capacitor?.getPlatform?.() === 'ios') {
+  fileInput.accept = '*/*'; // let iOS picker show PDFs reliably
+} else {
+  fileInput.accept = 'application/pdf,text/plain,.pdf,.txt';
+}
 
 document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
 
