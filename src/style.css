@@ -578,3 +578,35 @@ body.fullscreen .reader-content {
     padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* Export textarea - bigger for codes */
+.export-textarea {
+  min-height: 150px !important;
+  max-height: 200px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+/* Fullscreen exit button - ALWAYS visible */
+.fullscreen-exit-btn {
+  position: fixed !important;
+  top: calc(20px + env(safe-area-inset-top, 0px)) !important;
+  right: calc(20px + env(safe-area-inset-right, 0px)) !important;
+  z-index: 99999 !important;
+  background: rgba(230, 76, 60, 0.95) !important;
+  color: white !important;
+  border: 2px solid #c0392b !important;
+  padding: 12px 20px !important;
+  font-size: 16px !important;
+  font-weight: bold !important;
+  border-radius: 8px !important;
+  cursor: pointer !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+  transition: all 0.2s !important;
+  margin: 0 !important;
+}
+
+.fullscreen-exit-btn:hover {
+  background: rgba(192, 57, 43, 0.98) !important;
+  transform: scale(1.05) !important;
+}

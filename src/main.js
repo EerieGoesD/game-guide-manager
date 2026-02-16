@@ -5,11 +5,9 @@ import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
-
-// Import pako for compression
 import pako from 'pako';
 
-// Viewport fix: Ensure proper viewport after modal dismissals
+// Viewport fix
 function resetViewport() {
   const viewport = document.querySelector('meta[name="viewport"]');
   if (viewport) {
@@ -31,21 +29,21 @@ let loadedContent = '';
 let originalLines = [];
 let currentGuideId = null;
 
-// Find state (Trim screen)
+// Find state
 let findMatches = [];
 let findIndex = -1;
 
 // Import state
-let pendingImport = null; // { data, hashHex, guideCount }
+let pendingImport = null;
 
-// Saved-guides selection mode
+// Selection mode
 let selectMode = false;
 let selectedGuideIds = new Set();
 
 // Reader state
 let isFullscreen = false;
-let readerTheme = 'dark'; // 'dark', 'light', 'contrast'
-let wordColors = {}; // { word: color }
+let readerTheme = 'dark';
+let wordColors = {};
 
 const app = document.getElementById('app');
 
@@ -68,7 +66,7 @@ app.innerHTML = `
 
         <div class="menu-button" id="btnIO">
           <h3>📦 Import / Export</h3>
-          <p>Move guides between devices</p>
+          <p>Sync guides between devices</p>
         </div>
       </div>
 
@@ -98,28 +96,35 @@ app.innerHTML = `
         <div id="exportPane" style="margin-top:16px;">
           <h2>Export</h2>
           <p class="help-text">
-            Download a compressed file containing all your guides. Import it on another device.
+            Generates a short code containing all your guides. Copy it and import on another device.
           </p>
 
           <div class="button-group">
-            <button id="btnDownloadExport">📥 Download Export File</button>
+            <button id="btnGenerateExport">Generate Code</button>
+            <button class="secondary" id="btnCopyExport" disabled>Copy Code</button>
+            <button class="secondary" id="btnShareExport" disabled>Share</button>
           </div>
 
           <div class="selection-info">
-            <strong>Guides to export:</strong> <span id="exportCount">0</span>
+            <strong>Guides:</strong> <span id="exportCount">0</span>
           </div>
+
+          <label>Export Code (copy this):</label>
+          <textarea id="exportCode" class="export-textarea" readonly placeholder="Click 'Generate Code'"></textarea>
         </div>
 
         <div id="importPane" style="margin-top:16px; display:none;">
           <h2>Import</h2>
           <p class="help-text">
-            Select the export file (.ggm) you downloaded from another device.
+            Paste the export code here, then choose whether to replace or merge.
           </p>
 
-          <input type="file" id="importFileInput" accept=".ggm" style="display:none">
-          
+          <label>Paste Export Code:</label>
+          <textarea id="importCode" class="export-textarea" placeholder="Paste code here..."></textarea>
+
           <div class="button-group">
-            <button id="btnSelectImportFile">📤 Select Import File</button>
+            <button id="btnValidateImport">Validate Code</button>
+            <button class="secondary" id="btnClearImport">Clear</button>
           </div>
 
           <div id="importStatus"></div>
@@ -130,8 +135,8 @@ app.innerHTML = `
             </div>
 
             <div class="button-group">
-              <button class="danger" id="btnImportReplace">Delete all current guides and import</button>
-              <button id="btnImportMerge">Keep current guides and import</button>
+              <button class="danger" id="btnImportReplace">Delete all and import</button>
+              <button id="btnImportMerge">Keep current and import</button>
             </div>
           </div>
         </div>
@@ -166,8 +171,7 @@ app.innerHTML = `
         <div id="urlLoader" style="display:none; margin-top: 20px;">
           <label>Enter URL:</label>
           <p class="help-text">
-            On Android/iOS (Capacitor) and Desktop (Electron), this uses native networking (no browser CORS).
-            Some sites still block automated access; use Paste Text if it fails.
+            On Android/iOS and Desktop, this uses native networking (no CORS issues).
           </p>
           <input type="text" id="urlInput" placeholder="https://gamefaqs.gamespot.com/...">
           <button id="btnUrlLoad">Load</button>
@@ -192,20 +196,20 @@ app.innerHTML = `
       <div class="selection-helper">
         <h2>Edit the guide text</h2>
         <p class="help-text">
-          Remove unwanted parts by deleting text directly (Backspace/Delete on keyboard or phone).
+          Remove unwanted parts by deleting text directly.
         </p>
 
         <div class="selection-info">
           <strong>Original Lines:</strong> <span id="totalLines">0</span><br>
           <strong>Current Lines:</strong> <span id="currentLines">0</span><br>
-          <strong>Start Line (estimated):</strong> <span id="startLineLabel">1</span><br>
-          <strong>End Line (estimated):</strong> <span id="endLineLabel">1</span>
+          <strong>Start Line:</strong> <span id="startLineLabel">1</span><br>
+          <strong>End Line:</strong> <span id="endLineLabel">1</span>
         </div>
 
         <label>Trimmed Content (editable):</label>
 
-        <div id="findBar" class="findbar" aria-label="Find in guide">
-          <input type="text" id="findQuery" placeholder="Find text… (Enter = Next, Shift+Enter = Prev)" autocomplete="off" />
+        <div id="findBar" class="findbar">
+          <input type="text" id="findQuery" placeholder="Find text…" autocomplete="off" />
           <span class="meta" id="findMeta">0/0</span>
           <button id="findPrev" class="secondary">Prev</button>
           <button id="findNext" class="secondary">Next</button>
@@ -258,7 +262,7 @@ app.innerHTML = `
 
       <div class="button-group">
         <button id="backToMain2">← Back</button>
-        <button class="secondary" id="btnSelectDelete">Select + Delete guides</button>
+        <button class="secondary" id="btnSelectDelete">Select + Delete</button>
         <button class="danger" id="btnDeleteSelected" style="display:none;">Delete Selected (0)</button>
         <button class="secondary" id="btnCancelSelect" style="display:none;">Cancel</button>
       </div>
@@ -268,7 +272,7 @@ app.innerHTML = `
 
     <div id="readerScreen" class="screen">
       <div class="button-group" id="readerButtonGroup">
-        <button id="backToGuides">← Back to Guides</button>
+        <button id="backToGuides">← Back</button>
         <button class="secondary btn-fixed-width" id="btnFullscreen">⛶ Fullscreen</button>
         <button class="secondary btn-fixed-width" id="btnTheme">🎨 Theme</button>
         <button class="secondary" id="btnWordColors">🖍️ Colors</button>
@@ -287,16 +291,18 @@ app.innerHTML = `
         </div>
         <div class="reader-content" id="readerContent"></div>
       </div>
+
+      <!-- FULLSCREEN EXIT BUTTON (always visible in fullscreen) -->
+      <button id="fullscreenExitBtn" class="fullscreen-exit-btn" style="display:none;">✕ Exit Fullscreen</button>
     </div>
 
-    <div id="toast" class="toast" role="status" aria-live="polite">
+    <div id="toast" class="toast">
       <span class="toast-title" id="toastTitle">Saved</span>
       <span id="toastMessage"></span>
-      <button class="toast-close" id="toastClose" aria-label="Close">×</button>
+      <button class="toast-close" id="toastClose">×</button>
     </div>
 
-    <!-- Themed modal confirm -->
-    <div id="modal" class="modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div id="modal" class="modal" style="display:none">
       <div class="modal-card">
         <div class="modal-title" id="modalTitle">Confirm</div>
         <div class="modal-body" id="modalBody"></div>
@@ -307,17 +313,16 @@ app.innerHTML = `
       </div>
     </div>
 
-    <!-- Word colors modal -->
-    <div id="wordColorsModal" class="modal" style="display:none" role="dialog" aria-modal="true">
+    <div id="wordColorsModal" class="modal" style="display:none">
       <div class="modal-card">
         <div class="modal-title">Word Highlighting</div>
         <div class="modal-body">
-          <p class="help-text">Assign colors to specific words in your guide. All instances of the word will be highlighted.</p>
+          <p class="help-text">Assign colors to specific words. All instances will be highlighted.</p>
           
           <div class="word-highlight-form">
             <div class="form-row">
               <div style="flex: 1;">
-                <label>Word to highlight:</label>
+                <label>Word:</label>
                 <input type="text" id="wordInput" placeholder="Enter word...">
               </div>
               <div>
@@ -336,10 +341,9 @@ app.innerHTML = `
       </div>
     </div>
 
-    <!-- Support modal (startup) -->
-    <div id="supportModal" class="modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="supportTitle">
+    <div id="supportModal" class="modal" style="display:none">
       <div class="modal-card modal-compact">
-        <button class="modal-x" id="supportClose" aria-label="Close">×</button>
+        <button class="modal-x" id="supportClose">×</button>
         <div class="modal-title" id="supportTitle">Support</div>
         <div class="modal-body" id="supportBody">
           Made by EERIE<br>
@@ -355,35 +359,19 @@ app.innerHTML = `
 
 document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
 
-/* -----------------------------
-   Support modal
---------------------------------*/
+/* Support modal */
 let supportKeyHandler = null;
 function showSupportModal() {
   const modal = document.getElementById('supportModal');
   const btn = document.getElementById('supportClose');
-
   modal.style.display = 'flex';
   modal.classList.add('show');
-
   const close = () => hideSupportModal();
-
-  const onBackdrop = (e) => {
-    if (e.target === modal) close();
-  };
-
-  supportKeyHandler = (e) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-    }
-  };
-
+  const onBackdrop = (e) => { if (e.target === modal) close(); };
+  supportKeyHandler = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
   btn.addEventListener('click', close, { once: true });
   modal.addEventListener('click', onBackdrop, { once: true });
   document.addEventListener('keydown', supportKeyHandler, true);
-
   setTimeout(() => btn.focus(), 0);
 }
 
@@ -391,16 +379,13 @@ function hideSupportModal() {
   const modal = document.getElementById('supportModal');
   modal.classList.remove('show');
   modal.style.display = 'none';
-
   if (supportKeyHandler) {
     document.removeEventListener('keydown', supportKeyHandler, true);
     supportKeyHandler = null;
   }
 }
 
-/* -----------------------------
-   Toast
---------------------------------*/
+/* Toast */
 let toastTimer = null;
 function showToast(title, message, ms = 2200) {
   const toast = document.getElementById('toast');
@@ -418,18 +403,10 @@ document.getElementById('toastClose').addEventListener('click', () => {
   toastTimer = null;
 });
 
-/* -----------------------------
-   Themed Confirm Modal (replaces native confirm)
---------------------------------*/
+/* Modal */
 let modalResolve = null;
 
-function themedConfirm({
-  title = 'Confirm',
-  message = '',
-  okText = 'OK',
-  cancelText = 'Cancel',
-  danger = false
-} = {}) {
+function themedConfirm({ title = 'Confirm', message = '', okText = 'OK', cancelText = 'Cancel', danger = false } = {}) {
   const modal = document.getElementById('modal');
   const titleEl = document.getElementById('modalTitle');
   const bodyEl = document.getElementById('modalBody');
@@ -440,14 +417,11 @@ function themedConfirm({
   bodyEl.textContent = message;
   btnOk.textContent = okText;
   btnCancel.textContent = cancelText;
-
   btnOk.classList.toggle('danger', !!danger);
   modal.style.display = 'flex';
   modal.classList.add('show');
 
-  if (modalResolve) {
-    try { modalResolve(false); } catch {}
-  }
+  if (modalResolve) { try { modalResolve(false); } catch {} }
   modalResolve = null;
 
   return new Promise((resolve) => {
@@ -463,7 +437,6 @@ function themedConfirm({
       modal.removeEventListener('click', onBackdrop);
       document.removeEventListener('keydown', onKey);
       btnOk.classList.remove('danger');
-
       const r = modalResolve;
       modalResolve = null;
       if (r) r(result);
@@ -481,31 +454,22 @@ function themedConfirm({
     btnCancel.addEventListener('click', onCancel);
     modal.addEventListener('click', onBackdrop);
     document.addEventListener('keydown', onKey, true);
-
     setTimeout(() => btnOk.focus(), 0);
   });
 }
 
-/* -----------------------------
-   Screen management
---------------------------------*/
+/* Screen management */
 async function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(screenId).classList.add('active');
-
-  // Reset viewport on screen change (fixes layout issues)
   resetViewport();
 
   if (screenId === 'savedScreen') {
     await loadSavedGuides();
     updateSelectDeleteUI();
   }
-  if (screenId === 'previewScreen') {
-    setPreviewProgressUI(0);
-  }
-  if (screenId === 'ioScreen') {
-    await refreshExportMetaOnly();
-  }
+  if (screenId === 'previewScreen') setPreviewProgressUI(0);
+  if (screenId === 'ioScreen') await refreshExportMetaOnly();
 }
 
 function showUrlLoader() {
@@ -518,9 +482,7 @@ function showTextPaster() {
   document.getElementById('urlLoader').style.display = 'none';
 }
 
-/* -----------------------------
-   Saved Guides: Select + Delete
---------------------------------*/
+/* Select + Delete */
 function setSelectMode(on) {
   selectMode = on;
   selectedGuideIds.clear();
@@ -531,7 +493,6 @@ function setSelectMode(on) {
 function updateSelectDeleteUI() {
   const btnDel = document.getElementById('btnDeleteSelected');
   const btnCancel = document.getElementById('btnCancelSelect');
-
   if (selectMode) {
     btnDel.style.display = 'inline-block';
     btnCancel.style.display = 'inline-block';
@@ -550,9 +511,7 @@ function updateDeleteSelectedLabel() {
 function toggleGuideSelection(id) {
   if (selectedGuideIds.has(id)) selectedGuideIds.delete(id);
   else selectedGuideIds.add(id);
-
   updateDeleteSelectedLabel();
-
   const card = document.querySelector(`.guide-card[data-id="${id}"]`);
   if (card) {
     card.classList.toggle('selected', selectedGuideIds.has(id));
@@ -564,20 +523,17 @@ function toggleGuideSelection(id) {
 async function deleteSelectedGuides() {
   const count = selectedGuideIds.size;
   if (!count) return;
-
   const ok = await themedConfirm({
     title: 'Delete selected guides',
-    message: `Delete ${count} selected guide${count === 1 ? '' : 's'}?\nThis cannot be undone.`,
+    message: `Delete ${count} guide${count === 1 ? '' : 's'}?\nCannot be undone.`,
     okText: 'Delete',
     cancelText: 'Cancel',
     danger: true
   });
   if (!ok) return;
-
   const guides = await bridge.readGuides();
   const remaining = guides.filter(g => !selectedGuideIds.has(Number(g.id)));
   await bridge.writeGuides(remaining);
-
   showToast('Deleted', `Deleted ${count} guide${count === 1 ? '' : 's'}`);
   await updateGuideCount();
   selectedGuideIds.clear();
@@ -585,15 +541,12 @@ async function deleteSelectedGuides() {
   updateSelectDeleteUI();
 }
 
-/* -----------------------------
-   Import / Export (FILE-BASED with COMPRESSION)
---------------------------------*/
+/* Import / Export with COMPRESSED CODES */
 function setTab(which) {
   const exportPane = document.getElementById('exportPane');
   const importPane = document.getElementById('importPane');
   const tabExport = document.getElementById('tabExport');
   const tabImport = document.getElementById('tabImport');
-
   if (which === 'export') {
     exportPane.style.display = 'block';
     importPane.style.display = 'none';
@@ -605,7 +558,6 @@ function setTab(which) {
     tabExport.disabled = false;
     tabImport.disabled = true;
   }
-  
   resetViewport();
 }
 
@@ -622,60 +574,105 @@ function showImportActions(show) {
   document.getElementById('importActions').style.display = show ? 'block' : 'none';
 }
 
-async function downloadExportFile() {
+async function generateExportCode() {
   const guides = await bridge.readGuides();
-
-  const data = {
-    v: 1,
-    app: 'ggm',
-    exportedAt: new Date().toISOString(),
-    guides
-  };
-
+  const data = { v: 1, app: 'ggm', exportedAt: new Date().toISOString(), guides };
   const json = JSON.stringify(data);
   
-  // Compress the JSON data
-  const compressed = pako.gzip(json);
+  // Compress with pako
+  const compressed = pako.deflate(json, { level: 9 });
   
-  // Create blob and download
-  const blob = new Blob([compressed], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
+  // Convert to base64
+  const base64 = btoa(String.fromCharCode.apply(null, compressed));
   
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `guides-export-${new Date().toISOString().split('T')[0]}.ggm`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  // Add prefix
+  const code = `GGM2:${base64}`;
   
-  showToast('Downloaded', `Export file created with ${guides.length} guide${guides.length === 1 ? '' : 's'}`);
+  document.getElementById('exportCode').value = code;
+  document.getElementById('exportCount').textContent = String(guides.length);
+  document.getElementById('btnCopyExport').disabled = false;
+  document.getElementById('btnShareExport').disabled = false;
+  
+  showToast('Generated', `Code for ${guides.length} guide${guides.length === 1 ? '' : 's'}`);
   resetViewport();
 }
 
-function selectImportFile() {
-  document.getElementById('importFileInput').click();
-}
-
-async function handleImportFile(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  pendingImport = null;
-  showImportActions(false);
-  setImportStatus('<div class="loading">Reading file...</div>');
+async function copyExportCode() {
+  const ta = document.getElementById('exportCode');
+  const value = ta.value || '';
+  if (!value) return;
 
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const compressed = new Uint8Array(arrayBuffer);
+    await navigator.clipboard.writeText(value);
+    showToast('Copied', 'Export code copied!');
+  } catch {
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      showToast('Copied', 'Export code copied!');
+    } catch {
+      showToast('Copy', 'Select all and copy manually');
+    }
+  }
+}
+
+async function shareExportCode() {
+  const code = document.getElementById('exportCode').value || '';
+  if (!code) return;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Game Guide Export',
+        text: code
+      });
+      showToast('Shared', 'Export code shared');
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        copyExportCode();
+      }
+    }
+  } else {
+    copyExportCode();
+  }
+}
+
+async function validateImportCode() {
+  let raw = (document.getElementById('importCode').value || '').trim();
+  pendingImport = null;
+  showImportActions(false);
+  setImportStatus('');
+
+  if (!raw) {
+    setImportStatus(`<div class="error"><strong>❌ Paste code first</strong></div>`);
+    return;
+  }
+
+  // Remove any whitespace/newlines that might have been added
+  raw = raw.replace(/\s+/g, '');
+
+  if (!raw.startsWith('GGM2:')) {
+    setImportStatus(`<div class="error"><strong>❌ Invalid format</strong><br>Expected: GGM2:...</div>`);
+    return;
+  }
+
+  const base64 = raw.substring(5);
+
+  try {
+    // Decode base64
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
     
     // Decompress
-    const decompressed = pako.ungzip(compressed, { to: 'string' });
-    
+    const decompressed = pako.inflate(bytes, { to: 'string' });
     const data = JSON.parse(decompressed);
 
     if (!data || data.v !== 1 || data.app !== 'ggm' || !Array.isArray(data.guides)) {
-      setImportStatus(`<div class="error"><strong>❌ Invalid export file.</strong></div>`);
+      setImportStatus(`<div class="error"><strong>❌ Invalid data</strong></div>`);
       return;
     }
 
@@ -683,7 +680,7 @@ async function handleImportFile(event) {
 
     setImportStatus(`
       <div class="success">
-        <strong>✓ Valid export file</strong><br>
+        <strong>✓ Valid code!</strong><br>
         Exported: ${escapeHtml(String(data.exportedAt || ''))}<br>
         Guides: ${data.guides.length}
       </div>
@@ -692,11 +689,17 @@ async function handleImportFile(event) {
     document.getElementById('importGuideCount').textContent = String(data.guides.length);
     showImportActions(true);
   } catch (e) {
-    setImportStatus(`<div class="error"><strong>❌ Failed to read file.</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
+    setImportStatus(`<div class="error"><strong>❌ Failed to parse</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
   }
   
-  // Clear file input
-  event.target.value = '';
+  resetViewport();
+}
+
+function clearImportUI() {
+  document.getElementById('importCode').value = '';
+  setImportStatus('');
+  showImportActions(false);
+  pendingImport = null;
   resetViewport();
 }
 
@@ -709,7 +712,6 @@ function makeUniqueId(existing) {
 
 async function importReplaceAll() {
   if (!pendingImport) return;
-
   const imported = pendingImport.data.guides.map(g => ({
     id: Number(g.id) || Date.now(),
     name: String(g.name || 'Untitled'),
@@ -718,7 +720,6 @@ async function importReplaceAll() {
     dateAdded: String(g.dateAdded || new Date().toISOString()),
     wordColors: g.wordColors || {}
   }));
-
   await bridge.writeGuides(imported);
   showToast('Imported', `Imported ${imported.length} guides`);
   await updateGuideCount();
@@ -730,10 +731,8 @@ async function importReplaceAll() {
 
 async function importMergeKeepCurrent() {
   if (!pendingImport) return;
-
   const current = await bridge.readGuides();
   const existingIds = new Set(current.map(g => Number(g.id)));
-
   const imported = pendingImport.data.guides.map(g => {
     const obj = {
       id: Number(g.id) || 0,
@@ -743,16 +742,12 @@ async function importMergeKeepCurrent() {
       dateAdded: String(g.dateAdded || new Date().toISOString()),
       wordColors: g.wordColors || {}
     };
-
     if (!obj.id || existingIds.has(obj.id)) obj.id = makeUniqueId(existingIds);
     else existingIds.add(obj.id);
-
     return obj;
   });
-
   const merged = current.concat(imported);
   await bridge.writeGuides(merged);
-
   showToast('Imported', `Imported ${imported.length} guides (merged)`);
   await updateGuideCount();
   pendingImport = null;
@@ -761,9 +756,7 @@ async function importMergeKeepCurrent() {
   await showScreen('mainScreen');
 }
 
-/* -----------------------------
-   Find (Trim)
---------------------------------*/
+/* Find */
 function isFindOpen() {
   return document.getElementById('findBar').classList.contains('show');
 }
@@ -771,18 +764,14 @@ function isFindOpen() {
 function openFind() {
   const bar = document.getElementById('findBar');
   bar.classList.add('show');
-
   const edit = document.getElementById('editContent');
   const q = document.getElementById('findQuery');
-
   const sel = edit.value.substring(edit.selectionStart || 0, edit.selectionEnd || 0).trim();
   if (sel && !q.value) q.value = sel;
-
   computeFindMatches();
   if (findMatches.length) findIndex = 0;
   updateFindMeta();
   scrollToCurrentMatch();
-
   q.focus();
   q.select();
 }
@@ -798,18 +787,14 @@ function closeFind() {
 function computeFindMatches() {
   const query = (document.getElementById('findQuery').value || '').trim();
   const text = document.getElementById('editContent').value || '';
-
   findMatches = [];
-
   if (!query) {
     findIndex = -1;
     updateFindMeta();
     return;
   }
-
   const hay = text.toLowerCase();
   const nee = query.toLowerCase();
-
   let pos = 0;
   while (true) {
     const idx = hay.indexOf(nee, pos);
@@ -817,10 +802,8 @@ function computeFindMatches() {
     findMatches.push({ start: idx, end: idx + query.length });
     pos = idx + Math.max(1, query.length);
   }
-
   if (findIndex >= findMatches.length) findIndex = findMatches.length - 1;
   if (findIndex < 0 && findMatches.length) findIndex = 0;
-
   updateFindMeta();
 }
 
@@ -865,23 +848,16 @@ function findPrev() {
   document.getElementById('findQuery').focus();
 }
 
-/* -----------------------------
-   Trim / Preview / Save
---------------------------------*/
+/* Trim / Preview / Save */
 function proceedToTrim() {
   if (!loadedContent) return alert('No content loaded.');
-
   originalLines = loadedContent.split('\n');
   document.getElementById('totalLines').textContent = String(originalLines.length);
-
   const edit = document.getElementById('editContent');
   edit.value = loadedContent;
-
   closeFind();
   updateTrimInfo();
-
   showScreen('extractScreen');
-
   setTimeout(() => {
     edit.focus();
     edit.setSelectionRange(0, 0);
@@ -903,13 +879,10 @@ function updateTrimInfo() {
   const text = document.getElementById('editContent').value || '';
   const lines = text.split('\n');
   document.getElementById('currentLines').textContent = String(lines.length);
-
   const first = lines.find(l => l.trim().length > 0) ?? '';
   const last = findLast(lines, l => l.trim().length > 0) ?? '';
-
   let start = 1;
   let end = originalLines.length || 1;
-
   if (first && originalLines.length) {
     const idx = originalLines.findIndex(l => l === first);
     if (idx >= 0) start = idx + 1;
@@ -918,10 +891,8 @@ function updateTrimInfo() {
     const idx = findLastIndex(originalLines, l => l === last);
     if (idx >= 0) end = idx + 1;
   }
-
   start = clamp(start, 1, originalLines.length || 1);
   end = clamp(end, 1, originalLines.length || 1);
-
   document.getElementById('startLineLabel').textContent = String(start);
   document.getElementById('endLineLabel').textContent = String(end);
 }
@@ -929,13 +900,10 @@ function updateTrimInfo() {
 function openPreview() {
   const text = document.getElementById('editContent').value || '';
   const content = text.trim();
-  if (!content) return alert('Nothing to preview (trimmed content is empty).');
-
+  if (!content) return alert('Nothing to preview.');
   const preview = document.getElementById('previewContent');
   preview.textContent = content;
-
   showScreen('previewScreen');
-
   setTimeout(() => {
     preview.scrollTop = 0;
     setPreviewProgressUI(0);
@@ -954,13 +922,10 @@ function setPreviewProgressUI(progress) {
   document.getElementById('previewProgressText').textContent = progress + '%';
 }
 
-/* -----------------------------
-   Loading sources
---------------------------------*/
+/* Load sources */
 function handleFileLoad(event) {
   const file = event.target.files[0];
   if (!file) return;
-
   const reader = new FileReader();
   reader.onload = (e) => {
     loadedContent = e.target.result || '';
@@ -980,7 +945,6 @@ function loadFromPaste() {
 async function loadFromUrl() {
   const url = document.getElementById('urlInput').value.trim();
   if (!url) return alert('Please enter a URL.');
-
   const errorDiv = document.getElementById('loadError');
   const loadingDiv = document.getElementById('loadingIndicator');
   errorDiv.innerHTML = '';
@@ -988,7 +952,6 @@ async function loadFromUrl() {
 
   try {
     const target = normalizeGuideUrl(url);
-
     let content;
     try {
       content = await bridge.fetchUrl(target);
@@ -1001,19 +964,14 @@ async function loadFromUrl() {
         throw e;
       }
     }
-
     if (/<html[\s>]/i.test(content) || /<pre[\s>]/i.test(content)) {
       content = extractTextFromHtml(content);
     }
-
     loadedContent = (content || '').trim();
     if (!loadedContent) throw new Error('Loaded content was empty.');
-
     loadingDiv.style.display = 'none';
-    errorDiv.innerHTML = `<div class="success">✓ Loaded successfully!</div>`;
-    
+    errorDiv.innerHTML = `<div class="success">✓ Loaded!</div>`;
     resetViewport();
-    
     setTimeout(() => (errorDiv.innerHTML = ''), 2500);
     proceedToTrim();
   } catch (err) {
@@ -1025,24 +983,20 @@ async function loadFromUrl() {
         ${msg}<br><br>
         <p><strong>Try:</strong></p>
         <ol style="text-align:left; margin:10px 20px; line-height:1.8;">
-          <li><strong>Paste Text</strong> (most reliable)</li>
-          <li><strong>Load from File</strong> (download/save as .txt)</li>
+          <li><strong>Paste Text</strong></li>
+          <li><strong>Load from File</strong></li>
         </ol>
       </div>
     `;
   }
 }
 
-/* -----------------------------
-   Save + list + reader
---------------------------------*/
+/* Save + list + reader */
 async function finalSaveGuide() {
   const name = document.getElementById('guideName').value.trim();
   if (!name) return alert('Please enter a guide name.');
-
   const content = (document.getElementById('editContent').value || '').trim();
-  if (!content) return alert('Trimmed content is empty. Please keep some text before saving.');
-
+  if (!content) return alert('Content is empty.');
   const guides = await bridge.readGuides();
   guides.push({
     id: Date.now(),
@@ -1052,20 +1006,16 @@ async function finalSaveGuide() {
     dateAdded: new Date().toISOString(),
     wordColors: {}
   });
-
   await bridge.writeGuides(guides);
-
   loadedContent = '';
   originalLines = [];
   currentGuideId = null;
-
   document.getElementById('guideName').value = '';
   document.getElementById('urlInput').value = '';
   document.getElementById('urlLoader').style.display = 'none';
   document.getElementById('textPaster').style.display = 'none';
   document.getElementById('editContent').value = '';
-
-  showToast('Saved', 'Guide saved successfully');
+  showToast('Saved', 'Guide saved!');
   await updateGuideCount();
   await showScreen('mainScreen');
 }
@@ -1073,7 +1023,6 @@ async function finalSaveGuide() {
 async function loadSavedGuides() {
   const guides = await bridge.readGuides();
   const container = document.getElementById('savedGuidesList');
-
   if (!guides.length) {
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align:center; padding:50px; color:#8b929a;">
@@ -1083,19 +1032,16 @@ async function loadSavedGuides() {
     `;
     return;
   }
-
   container.innerHTML = guides.map(g => {
     const isSelected = selectedGuideIds.has(Number(g.id));
     const cls = `guide-card ${selectMode ? 'selectable' : ''} ${isSelected ? 'selected' : ''}`;
-
     return `
       <div class="${cls}" data-id="${g.id}">
         ${selectMode ? `
           <div class="guide-select">
-            <input type="checkbox" ${isSelected ? 'checked' : ''} aria-label="Select guide">
+            <input type="checkbox" ${isSelected ? 'checked' : ''}>
           </div>
         ` : ''}
-
         <h3>${escapeHtml(g.name)}</h3>
         <div class="progress-info">Progress: ${g.progress}%</div>
         <div class="progress-bar-container">
@@ -1105,10 +1051,8 @@ async function loadSavedGuides() {
       </div>
     `;
   }).join('');
-
   container.querySelectorAll('.guide-card').forEach(card => {
     const id = Number(card.dataset.id);
-
     const cb = card.querySelector('input[type="checkbox"]');
     if (cb) {
       cb.addEventListener('click', (e) => {
@@ -1116,13 +1060,11 @@ async function loadSavedGuides() {
         toggleGuideSelection(id);
       });
     }
-
     card.addEventListener('click', () => {
       if (selectMode) toggleGuideSelection(id);
       else openGuide(id);
     });
   });
-
   updateSelectDeleteUI();
 }
 
@@ -1131,17 +1073,11 @@ async function openGuide(id) {
   const guides = await bridge.readGuides();
   const guide = guides.find(g => g.id === id);
   if (!guide) return;
-
   wordColors = guide.wordColors || {};
-
   document.getElementById('readerTitle').textContent = guide.name;
-  
   applyWordHighlights(guide.content);
-
   setProgressUI(guide.progress);
-
   await showScreen('readerScreen');
-
   setTimeout(() => {
     const c = document.getElementById('readerContent');
     const maxScroll = c.scrollHeight - c.clientHeight;
@@ -1152,35 +1088,27 @@ async function openGuide(id) {
 
 function applyWordHighlights(content) {
   const readerContent = document.getElementById('readerContent');
-  
   if (!Object.keys(wordColors).length) {
     readerContent.textContent = content;
     return;
   }
-
   let html = escapeHtml(content);
-  
   const sortedWords = Object.keys(wordColors).sort((a, b) => b.length - a.length);
-  
   for (const word of sortedWords) {
     const color = wordColors[word];
     const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
     html = html.replace(regex, `<span style="background-color: ${color}; padding: 2px 4px; border-radius: 3px;">$&</span>`);
   }
-  
   readerContent.innerHTML = html;
 }
 
 async function updateReadingProgress() {
   if (currentGuideId == null) return;
-
   const c = document.getElementById('readerContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
   const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
-
   setProgressUI(progress);
-
   const guides = await bridge.readGuides();
   const guide = guides.find(g => g.id === currentGuideId);
   if (guide) {
@@ -1203,20 +1131,17 @@ function closeReader() {
 
 async function deleteCurrentGuide() {
   if (!currentGuideId) return;
-
   const ok = await themedConfirm({
     title: 'Delete guide',
-    message: 'Delete this guide?\nThis cannot be undone.',
+    message: 'Delete this guide?\nCannot be undone.',
     okText: 'Delete',
     cancelText: 'Cancel',
     danger: true
   });
   if (!ok) return;
-
   const guides = await bridge.readGuides();
   const next = guides.filter(g => g.id !== currentGuideId);
   await bridge.writeGuides(next);
-
   currentGuideId = null;
   wordColors = {};
   await updateGuideCount();
@@ -1230,9 +1155,7 @@ async function updateGuideCount() {
   document.getElementById('guideCount').textContent = `${count} guide${count === 1 ? '' : 's'}`;
 }
 
-/* -----------------------------
-   Fullscreen Mode (FIXED)
---------------------------------*/
+/* FULLSCREEN MODE - PROPERLY FIXED */
 function toggleFullscreen() {
   if (isFullscreen) {
     exitFullscreen();
@@ -1245,11 +1168,15 @@ function enterFullscreen() {
   isFullscreen = true;
   document.body.classList.add('fullscreen');
   
-  // Update button text
+  // Show the floating exit button
+  const exitBtn = document.getElementById('fullscreenExitBtn');
+  exitBtn.style.display = 'block';
+  
+  // Update main button
   const btn = document.getElementById('btnFullscreen');
   btn.textContent = '⛶ Exit';
   
-  // Hide other buttons (but keep the container visible)
+  // Hide other buttons in button group
   const buttonGroup = document.getElementById('readerButtonGroup');
   Array.from(buttonGroup.children).forEach(button => {
     if (button.id !== 'btnFullscreen' && button.id !== 'btnTheme' && button.id !== 'btnWordColors') {
@@ -1262,7 +1189,11 @@ function exitFullscreen() {
   isFullscreen = false;
   document.body.classList.remove('fullscreen');
   
-  // Update button text
+  // Hide the floating exit button
+  const exitBtn = document.getElementById('fullscreenExitBtn');
+  exitBtn.style.display = 'none';
+  
+  // Update main button
   const btn = document.getElementById('btnFullscreen');
   btn.textContent = '⛶ Fullscreen';
   
@@ -1273,20 +1204,15 @@ function exitFullscreen() {
   });
 }
 
-/* -----------------------------
-   Theme Switching
---------------------------------*/
+/* Theme */
 function cycleTheme() {
   const themes = ['dark', 'light', 'contrast'];
   const currentIndex = themes.indexOf(readerTheme);
   const nextIndex = (currentIndex + 1) % themes.length;
   readerTheme = themes[nextIndex];
-  
   const container = document.getElementById('readerContainer');
   container.className = 'reader-container';
-  
   const btn = document.getElementById('btnTheme');
-  
   if (readerTheme === 'light') {
     container.classList.add('theme-light');
     btn.textContent = '🎨 Light';
@@ -1298,35 +1224,27 @@ function cycleTheme() {
   }
 }
 
-/* -----------------------------
-   Word Colors
---------------------------------*/
+/* Word Colors */
 function showWordColorsModal() {
   const modal = document.getElementById('wordColorsModal');
   modal.style.display = 'flex';
   modal.classList.add('show');
-  
   refreshWordColorsList();
-  
   document.getElementById('wordInput').focus();
 }
 
 function hideWordColorsModal() {
   const modal = document.getElementById('wordColorsModal');
   modal.classList.remove('show');
-  setTimeout(() => {
-    modal.style.display = 'none';
-  }, 200);
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
 }
 
 function refreshWordColorsList() {
   const list = document.getElementById('wordColorsList');
-  
   if (!Object.keys(wordColors).length) {
-    list.innerHTML = '<p class="help-text">No word highlights yet. Add some above!</p>';
+    list.innerHTML = '<p class="help-text">No highlights yet.</p>';
     return;
   }
-  
   list.innerHTML = Object.entries(wordColors).map(([word, color]) => `
     <div class="word-color-item">
       <div class="word-color-sample" style="background-color: ${color};"></div>
@@ -1334,7 +1252,6 @@ function refreshWordColorsList() {
       <button class="danger word-color-remove" data-word="${escapeHtml(word)}">Remove</button>
     </div>
   `).join('');
-  
   list.querySelectorAll('.word-color-remove').forEach(btn => {
     btn.addEventListener('click', () => {
       const word = btn.dataset.word;
@@ -1349,18 +1266,14 @@ function refreshWordColorsList() {
 async function addWordColor() {
   const word = document.getElementById('wordInput').value.trim();
   const color = document.getElementById('colorInput').value;
-  
   if (!word) {
-    showToast('Error', 'Please enter a word');
+    showToast('Error', 'Enter a word');
     return;
   }
-  
   wordColors[word] = color;
   await saveWordColors();
-  
   document.getElementById('wordInput').value = '';
   document.getElementById('colorInput').value = '#ffff00';
-  
   refreshWordColorsList();
   reapplyContent();
   showToast('Added', `Highlight added for "${word}"`);
@@ -1368,7 +1281,6 @@ async function addWordColor() {
 
 async function saveWordColors() {
   if (!currentGuideId) return;
-  
   const guides = await bridge.readGuides();
   const guide = guides.find(g => g.id === currentGuideId);
   if (guide) {
@@ -1379,47 +1291,33 @@ async function saveWordColors() {
 
 function reapplyContent() {
   if (!currentGuideId) return;
-  
   bridge.readGuides().then(guides => {
     const guide = guides.find(g => g.id === currentGuideId);
-    if (guide) {
-      applyWordHighlights(guide.content);
-    }
+    if (guide) applyWordHighlights(guide.content);
   });
 }
 
-/* -----------------------------
-   Utilities
---------------------------------*/
-function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
-}
-
+/* Utilities */
+function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function findLast(arr, predicate) {
   for (let i = arr.length - 1; i >= 0; i--) {
     if (predicate(arr[i], i)) return arr[i];
   }
   return undefined;
 }
-
 function findLastIndex(arr, predicate) {
   for (let i = arr.length - 1; i >= 0; i--) {
     if (predicate(arr[i], i)) return i;
   }
   return -1;
 }
-
 function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-/* -----------------------------
-   Wire up events
---------------------------------*/
-document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
-
+/* Wire up events */
 document.getElementById('btnLoadNew').addEventListener('click', () => showScreen('loadScreen'));
 document.getElementById('btnSaved').addEventListener('click', () => showScreen('savedScreen'));
 document.getElementById('btnIO').addEventListener('click', () => showScreen('ioScreen'));
@@ -1461,10 +1359,11 @@ document.getElementById('btnDelete').addEventListener('click', deleteCurrentGuid
 
 // Reader controls
 document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
+document.getElementById('fullscreenExitBtn').addEventListener('click', exitFullscreen);
 document.getElementById('btnTheme').addEventListener('click', cycleTheme);
 document.getElementById('btnWordColors').addEventListener('click', showWordColorsModal);
 
-// Word colors modal
+// Word colors
 document.getElementById('wordColorsClose').addEventListener('click', hideWordColorsModal);
 document.getElementById('btnAddWordColor').addEventListener('click', addWordColor);
 document.getElementById('wordInput').addEventListener('keydown', (e) => {
@@ -1511,7 +1410,6 @@ document.getElementById('findQuery').addEventListener('keydown', (e) => {
 document.addEventListener('keydown', (e) => {
   const isMac = navigator.platform.toLowerCase().includes('mac');
   const mod = isMac ? e.metaKey : e.ctrlKey;
-
   if (mod && (e.key === 'f' || e.key === 'F')) {
     if (document.getElementById('extractScreen').classList.contains('active')) {
       e.preventDefault();
@@ -1529,19 +1427,21 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
-// Import/Export - FILE BASED
+// Import/Export
 document.getElementById('tabExport').addEventListener('click', () => setTab('export'));
 document.getElementById('tabImport').addEventListener('click', () => setTab('import'));
 
-document.getElementById('btnDownloadExport').addEventListener('click', downloadExportFile);
-document.getElementById('btnSelectImportFile').addEventListener('click', selectImportFile);
-document.getElementById('importFileInput').addEventListener('change', handleImportFile);
+document.getElementById('btnGenerateExport').addEventListener('click', generateExportCode);
+document.getElementById('btnCopyExport').addEventListener('click', copyExportCode);
+document.getElementById('btnShareExport').addEventListener('click', shareExportCode);
+
+document.getElementById('btnValidateImport').addEventListener('click', validateImportCode);
+document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
 
 document.getElementById('btnImportReplace').addEventListener('click', importReplaceAll);
 document.getElementById('btnImportMerge').addEventListener('click', importMergeKeepCurrent);
 
 setTab('export');
-
 updateGuideCount();
 
 window.addEventListener('resize', resetViewport);
