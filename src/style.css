@@ -2,9 +2,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html, body {
-  height: 100%;
-}
+html, body { height: 100%; }
 
 body {
   background: #1b2838;
@@ -192,16 +190,11 @@ label { display: block; color: #66c0f4; margin-bottom: 5px; font-weight: bold; f
 }
 
 /* Full-screen mode */
-body.fullscreen {
-  padding: 0;
-}
+body.fullscreen { padding: 0; }
 
 body.fullscreen .reader-container {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   width: 100vw;
   height: 100vh;
   border: none;
@@ -209,9 +202,7 @@ body.fullscreen .reader-container {
   z-index: 9999;
 }
 
-body.fullscreen .reader-header {
-  top: 0;
-}
+body.fullscreen .reader-header { top: 0; }
 
 body.fullscreen .reader-content {
   max-height: none;
@@ -222,59 +213,19 @@ body.fullscreen .reader-content {
 }
 
 /* Reading themes */
-.reader-container.theme-light {
-  background: #ffffff;
-  border-color: #cccccc;
-}
+.reader-container.theme-light { background: #ffffff; border-color: #cccccc; }
+.reader-container.theme-light .reader-header { background: #f0f0f0; border-bottom-color: #cccccc; }
+.reader-container.theme-light .reader-title { color: #1b2838; }
+.reader-container.theme-light .reader-progress-bar { background: #e0e0e0; }
+.reader-container.theme-light .reader-progress-text { color: #1b2838; }
+.reader-container.theme-light .reader-content { background: #ffffff; color: #000000; }
 
-.reader-container.theme-light .reader-header {
-  background: #f0f0f0;
-  border-bottom-color: #cccccc;
-}
-
-.reader-container.theme-light .reader-title {
-  color: #1b2838;
-}
-
-.reader-container.theme-light .reader-progress-bar {
-  background: #e0e0e0;
-}
-
-.reader-container.theme-light .reader-progress-text {
-  color: #1b2838;
-}
-
-.reader-container.theme-light .reader-content {
-  background: #ffffff;
-  color: #000000;
-}
-
-.reader-container.theme-contrast {
-  background: #000000;
-  border-color: #ffffff;
-}
-
-.reader-container.theme-contrast .reader-header {
-  background: #000000;
-  border-bottom-color: #ffffff;
-}
-
-.reader-container.theme-contrast .reader-title {
-  color: #ffffff;
-}
-
-.reader-container.theme-contrast .reader-progress-bar {
-  background: #333333;
-}
-
-.reader-container.theme-contrast .reader-progress-text {
-  color: #ffffff;
-}
-
-.reader-container.theme-contrast .reader-content {
-  background: #000000;
-  color: #ffffff;
-}
+.reader-container.theme-contrast { background: #000000; border-color: #ffffff; }
+.reader-container.theme-contrast .reader-header { background: #000000; border-bottom-color: #ffffff; }
+.reader-container.theme-contrast .reader-title { color: #ffffff; }
+.reader-container.theme-contrast .reader-progress-bar { background: #333333; }
+.reader-container.theme-contrast .reader-progress-text { color: #ffffff; }
+.reader-container.theme-contrast .reader-content { background: #000000; color: #ffffff; }
 
 #editContent { min-height: 520px; }
 
@@ -285,17 +236,16 @@ body.fullscreen .reader-content {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
-  font-size: 12px;
+  font-size: 14px;          /* slightly bigger */
+  line-height: 1.4;
   color: #ccffffff;
 }
-.footer a {
-  color: #ccffffff;
-  text-decoration: none;
-}
-.footer a:hover {
-  color: #66c0f4;
-  text-decoration: underline;
-}
+.footer a { color: #ccffffff; text-decoration: none; }
+.footer a:hover { color: #66c0f4; text-decoration: underline; }
+
+/* If main.js wraps “EERIE” in a span/anchor with this class */
+.footer-eerie { color: #66c0f4 !important; font-weight: 800; }
+.footer-line { margin-bottom: 6px; }
 
 /* Toast */
 .toast {
@@ -318,16 +268,8 @@ body.fullscreen .reader-content {
   pointer-events: none;
   transition: opacity .18s ease, transform .18s ease;
 }
-.toast.show {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-}
-.toast .toast-title {
-  color: #66c0f4;
-  font-weight: 700;
-  margin-right: 6px;
-}
+.toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.toast .toast-title { color: #66c0f4; font-weight: 700; margin-right: 6px; }
 .toast .toast-close {
   margin-left: auto;
   background: transparent;
@@ -352,47 +294,22 @@ body.fullscreen .reader-content {
 }
 .findbar.show { display: flex; flex-wrap: wrap; }
 
-.findbar input[type="text"] {
-  margin: 0;
-  flex: 1;
-  min-width: 220px;
-}
+.findbar input[type="text"] { margin: 0; flex: 1; min-width: 220px; }
+.findbar .meta { color: #8b929a; font-size: 13px; min-width: 90px; text-align: right; }
+.findbar button { margin: 0; padding: 10px 14px; font-size: 14px; }
 
-.findbar .meta {
-  color: #8b929a;
-  font-size: 13px;
-  min-width: 90px;
-  text-align: right;
-}
-
-.findbar button {
-  margin: 0;
-  padding: 10px 14px;
-  font-size: 14px;
-}
-
-/* Import / Export - much more compact */
-.io-tabs { display:flex; gap:10px; margin-bottom: 8px; }
-.codebox {
-  min-height: 70px;
-  max-height: 100px;
-  font-family: 'Consolas', 'Courier New', monospace;
-  line-height: 1.35;
-  font-size: 12px;
-  padding: 8px;
-  margin-bottom: 8px;
+/* Export textarea (if still present anywhere) */
+.export-textarea {
+  min-height: 150px !important;
+  max-height: 200px !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
 }
 
 /* Saved Guides: selection mode */
-.guide-card.selectable {
-  position: relative;
-}
+.guide-card.selectable { position: relative; }
 
-.guide-select {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-}
+.guide-select { position: absolute; top: 12px; right: 12px; }
 
 .guide-select input[type="checkbox"] {
   width: 20px;
@@ -409,10 +326,7 @@ body.fullscreen .reader-content {
 /* Modal base (centered overlay) */
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
@@ -421,10 +335,7 @@ body.fullscreen .reader-content {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
-
-.modal.show {
-  opacity: 1;
-}
+.modal.show { opacity: 1; }
 
 .modal-card {
   background: #2a475e;
@@ -437,25 +348,10 @@ body.fullscreen .reader-content {
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
-.modal-title {
-  color: #66c0f4;
-  font-size: 22px;
-  font-weight: bold;
-  margin-bottom: 16px;
-}
+.modal-title { color: #66c0f4; font-size: 22px; font-weight: bold; margin-bottom: 16px; }
+.modal-body { color: #c7d5e0; font-size: 16px; line-height: 1.6; margin-bottom: 20px; }
 
-.modal-body {
-  color: #c7d5e0;
-  font-size: 16px;
-  line-height: 1.6;
-  margin-bottom: 20px;
-}
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 
 /* Support modal (compact variant) */
 .modal-card.modal-compact {
@@ -463,19 +359,8 @@ body.fullscreen .reader-content {
   width: min(380px, calc(100vw - 28px));
   padding: 16px 18px;
 }
-
-.modal-card.modal-compact .modal-title {
-  margin: 0 30px 10px 0;
-  font-size: 16px;
-  line-height: 1.2;
-}
-
-.modal-card.modal-compact .modal-body {
-  margin: 0;
-  padding: 0;
-  font-size: 14px;
-  line-height: 2.0;
-}
+.modal-card.modal-compact .modal-title { margin: 0 30px 10px 0; font-size: 16px; line-height: 1.2; }
+.modal-card.modal-compact .modal-body { margin: 0; padding: 0; font-size: 14px; line-height: 2.0; }
 
 /* Top-right close button */
 .modal-x {
@@ -504,17 +389,10 @@ body.fullscreen .reader-content {
   display: block;
   margin-top: 0;
 }
-
-.modal-card.modal-compact .modal-body a:hover {
-  color: #66c0f4;
-}
+.modal-card.modal-compact .modal-body a:hover { color: #66c0f4; }
 
 /* Word highlighting settings modal */
-.word-colors-list {
-  max-height: 300px;
-  overflow-y: auto;
-  margin-top: 10px;
-}
+.word-colors-list { max-height: 300px; overflow-y: auto; margin-top: 10px; }
 
 .word-color-item {
   background: #1b2838;
@@ -525,25 +403,9 @@ body.fullscreen .reader-content {
   align-items: center;
   gap: 10px;
 }
-
-.word-color-sample {
-  width: 30px;
-  height: 30px;
-  border-radius: 4px;
-  border: 2px solid #417a9b;
-}
-
-.word-color-text {
-  flex: 1;
-  font-family: 'Consolas', monospace;
-  color: #c7d5e0;
-}
-
-.word-color-remove {
-  padding: 6px 12px;
-  font-size: 14px;
-  margin: 0;
-}
+.word-color-sample { width: 30px; height: 30px; border-radius: 4px; border: 2px solid #417a9b; }
+.word-color-text { flex: 1; font-family: 'Consolas', monospace; color: #c7d5e0; }
+.word-color-remove { padding: 6px 12px; font-size: 14px; margin: 0; }
 
 .word-highlight-form {
   background: #1b2838;
@@ -552,20 +414,9 @@ body.fullscreen .reader-content {
   margin-top: 10px;
 }
 
-.form-row {
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  margin-bottom: 10px;
-}
-
-.form-row input {
-  margin-bottom: 0;
-}
-
-.form-row button {
-  margin: 0;
-}
+.form-row { display: flex; gap: 10px; align-items: flex-end; margin-bottom: 10px; }
+.form-row input { margin-bottom: 0; }
+.form-row button { margin: 0; }
 
 /* Mobile tweaks */
 @media (max-width: 520px) {
@@ -579,34 +430,67 @@ body.fullscreen .reader-content {
   }
 }
 
-/* Export textarea - bigger for codes */
-.export-textarea {
-  min-height: 150px !important;
-  max-height: 200px !important;
-  font-size: 11px !important;
-  line-height: 1.4 !important;
+/* ===== UI polish ===== */
+
+/* Load Source buttons: equal widths (apply class "equal-width" to the button-group) */
+.button-group.equal-width {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.button-group.equal-width > button {
+  flex: 1 1 220px;
+  margin: 0;
 }
 
-/* Fullscreen exit button - ALWAYS visible */
+/* Import/Export tabs: clear active state (works if JS adds .active OR if you use disabled to indicate active) */
+.io-tabs { display: flex; gap: 10px; margin-bottom: 8px; }
+.io-tabs > button { flex: 1 1 0; }
+.io-tabs > button.active,
+.io-tabs > button:disabled {
+  background: #66c0f4;
+  color: #1b2838;
+}
+
+/* Consistent focus ring everywhere (keyboard + click/tap focus) */
+:where(button, input, textarea, select, a):focus,
+:where(button, input, textarea, select, a):focus-visible {
+  outline: 3px solid #66c0f4;
+  outline-offset: 2px;
+}
+
+/* Fullscreen header actions (no overlap with progress bar) */
+.reader-header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.reader-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Small exit button that can live in header actions */
+.reader-icon-btn {
+  padding: 6px 10px;
+  min-width: 40px;
+  line-height: 1;
+}
+
+/* Exit fullscreen button: small, non-floating (assumes it is placed in header actions by main.js) */
 .fullscreen-exit-btn {
-  position: fixed !important;
-  top: calc(20px + env(safe-area-inset-top, 0px)) !important;
-  right: calc(20px + env(safe-area-inset-right, 0px)) !important;
-  z-index: 99999 !important;
-  background: rgba(230, 76, 60, 0.95) !important;
-  color: white !important;
-  border: 2px solid #c0392b !important;
-  padding: 12px 20px !important;
-  font-size: 16px !important;
-  font-weight: bold !important;
-  border-radius: 8px !important;
-  cursor: pointer !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
-  transition: all 0.2s !important;
+  position: static !important;
+  top: auto !important;
+  right: auto !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border-radius: 10px;
   margin: 0 !important;
-}
-
-.fullscreen-exit-btn:hover {
-  background: rgba(192, 57, 43, 0.98) !important;
-  transform: scale(1.05) !important;
 }

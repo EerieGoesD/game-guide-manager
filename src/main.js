@@ -1,18 +1,14 @@
 // C:\Users\eerie\Documents\GitHub\game-guide-manager\src\main.js
 import './style.css';
-
 import { getBridge } from './bridge.js';
 import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 import { encodeGuidesBackupToString, decodeGuidesBackupFromString } from './backup.js';
 
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
-import pako from 'pako';
-
-// Viewport fix (avoids iOS viewport bugs after modal screens)
+// Viewport fix
 function resetViewport() {
   const viewport = document.querySelector('meta[name="viewport"]');
   if (viewport) {
@@ -41,6 +37,9 @@ let currentGuideId = null;
 let findMatches = [];
 let findIndex = -1;
 
+// Import state (backup)
+let pendingImport = null;
+
 // Selection mode
 let selectMode = false;
 let selectedGuideIds = new Set();
@@ -50,9 +49,9 @@ let isFullscreen = false;
 let readerTheme = 'dark';
 let wordColors = {};
 
-// Import / Export state
-let pendingImport = null; // { data, guideCount }
-let lastBackup = null; // { path, uri, createdAt, bytes, encrypted }
+// Backup meta (no files, no codes UI)
+let lastBackupMeta = null; // { createdAt, bytes, encrypted, guideCount }
+let lastBackupText = '';   // kept only in-memory to re-share if needed
 
 const app = document.getElementById('app');
 
@@ -60,21 +59,21 @@ app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>Game Guide Manager</h1>
+      <h1>🎮 Game Guide Manager</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
-          <h3>Load New Guide</h3>
+          <h3>📥 Load New Guide</h3>
           <p>From file, paste, or URL</p>
         </div>
 
         <div class="menu-button" id="btnSaved">
-          <h3>My Saved Guides</h3>
+          <h3>📚 My Saved Guides</h3>
           <p id="guideCount">0 guides</p>
         </div>
 
         <div class="menu-button" id="btnIO">
-          <h3>Import / Export</h3>
+          <h3>📦 Import / Export</h3>
           <p>Sync guides between devices</p>
         </div>
       </div>
@@ -84,75 +83,65 @@ app.innerHTML = `
       </p>
 
       <div class="footer">
-        <a href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">Made by EERIE</a>
-        <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Buy Me a Coffee</a>
+        <div class="footer-line">
+          Made by <a class="footer-eerie" href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a>
+        </div>
+        <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Buy Me a Coffee ☕</a>
       </div>
     </div>
 
     <div id="ioScreen" class="screen">
-      <h1>Import / Export Saved Guides</h1>
+      <h1>📦 Import / Export Saved Guides</h1>
 
       <div class="button-group">
-        <button id="backToMainIO">Back</button>
+        <button id="backToMainIO">← Back</button>
       </div>
 
       <div class="selection-helper">
         <div class="io-tabs">
-          <button class="secondary" id="tabExport">Export</button>
-          <button class="secondary" id="tabImport">Import</button>
+          <button class="secondary" id="tabExport" type="button">Export</button>
+          <button class="secondary" id="tabImport" type="button">Import</button>
         </div>
 
         <div id="exportPane" style="margin-top:16px;">
-          <h2>Backup File (recommended)</h2>
+          <h2>Share Backup (recommended)</h2>
           <p class="help-text">
-            Creates a compressed backup file. If you set a password, it is encrypted. Share it to your other device.
+            Creates a compressed backup of all your guides. If you set a password, it is encrypted.
+            No local file is created; the backup is shared as text via the share sheet.
           </p>
 
-          <label>Backup password (optional but recommended):</label>
-          <input type="text" id="backupPassExport" placeholder="Choose a password you will remember">
+          <label for="backupPassExport">Backup password (optional but recommended):</label>
+          <input type="text" id="backupPassExport" placeholder="Choose a password you will remember" autocomplete="off">
 
           <div class="button-group">
-            <button id="btnCreateBackup">Create Backup File</button>
-            <button class="secondary" id="btnShareBackup" disabled>Share Backup</button>
+            <button id="btnShareBackup" type="button">Share Backup</button>
           </div>
 
           <div class="selection-info">
             <strong>Guides:</strong> <span id="exportCount">0</span><br>
             <strong>Last backup:</strong> <span id="backupMeta">None</span>
           </div>
-
-          <hr style="margin:16px 0; border:0; border-top:2px solid #417a9b;">
-
-          <h2>Export Code (legacy)</h2>
-          <p class="help-text">
-            For small exports only. Large libraries will produce huge codes.
-          </p>
-
-          <div class="button-group">
-            <button id="btnGenerateExport">Generate Code</button>
-            <button class="secondary" id="btnCopyExport" disabled>Copy Code</button>
-            <button class="secondary" id="btnShareExport" disabled>Share</button>
-          </div>
-
-          <label>Export Code:</label>
-          <textarea id="exportCode" class="export-textarea" readonly placeholder="Click 'Generate Code'"></textarea>
         </div>
 
         <div id="importPane" style="margin-top:16px; display:none;">
-          <h2>Import Backup File (recommended)</h2>
+          <h2>Import Backup</h2>
           <p class="help-text">
-            Select a .ggm backup file and import by replacing or merging.
+            On the device you exported from, share the backup to any app (Notes/Messages/Email), then copy the entire backup text.
+            On this device, tap “Paste Backup” to load it.
           </p>
 
-          <label>Backup password (if you set one):</label>
-          <input type="text" id="backupPassImport" placeholder="Enter password (if any)">
+          <label for="backupPassImport">Backup password (if you set one):</label>
+          <input type="text" id="backupPassImport" placeholder="Enter password (if any)" autocomplete="off">
 
           <div class="button-group">
-            <button id="btnPickBackup">Choose Backup File</button>
-            <button class="secondary" id="btnClearImport">Clear</button>
+            <button id="btnPasteBackup" type="button">📋 Paste Backup</button>
+            <button class="secondary" id="btnClearImport" type="button">Clear</button>
           </div>
 
-          <input type="file" id="backupFileInput" accept=".ggm,application/json,text/plain" style="display:none">
+          <textarea id="backupPasteArea" class="export-textarea" style="display:none;" placeholder="Paste backup here..."></textarea>
+          <div class="button-group" id="backupManualButtons" style="display:none;">
+            <button id="btnValidateBackupText" type="button">Validate Backup</button>
+          </div>
 
           <div id="importStatus"></div>
 
@@ -162,42 +151,28 @@ app.innerHTML = `
             </div>
 
             <div class="button-group">
-              <button class="danger" id="btnImportReplace">Delete all and import</button>
-              <button id="btnImportMerge">Keep current and import</button>
+              <button class="danger" id="btnImportReplace" type="button">Delete all and import</button>
+              <button id="btnImportMerge" type="button">Keep current and import</button>
             </div>
-          </div>
-
-          <hr style="margin:16px 0; border:0; border-top:2px solid #417a9b;">
-
-          <h2>Import Code (legacy)</h2>
-          <p class="help-text">
-            Paste a small export code here.
-          </p>
-
-          <label>Paste Export Code:</label>
-          <textarea id="importCode" class="export-textarea" placeholder="Paste code here..."></textarea>
-
-          <div class="button-group">
-            <button id="btnValidateImport">Validate Code</button>
           </div>
         </div>
       </div>
     </div>
 
     <div id="loadScreen" class="screen">
-      <h1>Load New Guide</h1>
+      <h1>📥 Load New Guide</h1>
 
       <div class="button-group">
-        <button id="backToMain">Back</button>
+        <button id="backToMain">← Back</button>
       </div>
 
       <div class="selection-helper">
         <h2>Choose Source</h2>
 
-        <div class="button-group">
-          <button id="btnLoadFile">Load from File</button>
-          <button id="btnPaste">Paste Text</button>
-          <button id="btnUrl">Load from URL</button>
+        <div class="button-group equal-width" id="loadSourceButtons">
+          <button id="btnLoadFile" type="button">📄 Load from File</button>
+          <button id="btnPaste" type="button">📋 Paste Text</button>
+          <button id="btnUrl" type="button">🌐 Load from URL</button>
         </div>
 
         <input type="file" id="fileInput" accept=".txt,.text" style="display:none">
@@ -206,7 +181,7 @@ app.innerHTML = `
           <label>Paste Guide Text:</label>
           <p class="help-text">Most reliable (works on all platforms).</p>
           <textarea id="pasteArea" placeholder="Paste guide text here..." style="min-height: 280px;"></textarea>
-          <button id="btnPasteContinue">Continue</button>
+          <button id="btnPasteContinue" type="button">Continue</button>
         </div>
 
         <div id="urlLoader" style="display:none; margin-top: 20px;">
@@ -215,7 +190,7 @@ app.innerHTML = `
             On Android/iOS and Desktop, this uses native networking (no CORS issues).
           </p>
           <input type="text" id="urlInput" placeholder="https://gamefaqs.gamespot.com/...">
-          <button id="btnUrlLoad">Load</button>
+          <button id="btnUrlLoad" type="button">Load</button>
           <div id="loadError"></div>
         </div>
 
@@ -224,14 +199,14 @@ app.innerHTML = `
     </div>
 
     <div id="extractScreen" class="screen">
-      <h1>Trim Guide</h1>
+      <h1>✂️ Trim Guide</h1>
 
       <div class="button-group">
-        <button id="backToLoad">Back</button>
-        <button class="secondary" id="btnResetTrim">Reset to Full</button>
-        <button class="secondary" id="btnFind">Find</button>
-        <button id="btnPreview">Preview</button>
-        <button id="btnGoSave">Continue to Save</button>
+        <button id="backToLoad" type="button">← Back</button>
+        <button class="secondary" id="btnResetTrim" type="button">Reset to Full</button>
+        <button class="secondary" id="btnFind" type="button">Find</button>
+        <button id="btnPreview" type="button">Preview</button>
+        <button id="btnGoSave" type="button">Continue to Save</button>
       </div>
 
       <div class="selection-helper">
@@ -252,9 +227,9 @@ app.innerHTML = `
         <div id="findBar" class="findbar">
           <input type="text" id="findQuery" placeholder="Find text..." autocomplete="off" />
           <span class="meta" id="findMeta">0/0</span>
-          <button id="findPrev" class="secondary">Prev</button>
-          <button id="findNext" class="secondary">Next</button>
-          <button id="findClose" class="secondary">Close</button>
+          <button id="findPrev" class="secondary" type="button">Prev</button>
+          <button id="findNext" class="secondary" type="button">Next</button>
+          <button id="findClose" class="secondary" type="button">Close</button>
         </div>
 
         <textarea id="editContent" placeholder="Guide text will appear here..."></textarea>
@@ -263,8 +238,8 @@ app.innerHTML = `
 
     <div id="previewScreen" class="screen">
       <div class="button-group">
-        <button id="backToTrim">Back</button>
-        <button id="btnPreviewContinue">Continue to Save</button>
+        <button id="backToTrim" type="button">← Back</button>
+        <button id="btnPreviewContinue" type="button">Continue to Save</button>
       </div>
 
       <div class="reader-container">
@@ -282,7 +257,7 @@ app.innerHTML = `
     </div>
 
     <div id="saveScreen" class="screen">
-      <h1>Save Guide</h1>
+      <h1>💾 Save Guide</h1>
 
       <div class="selection-helper">
         <h2>Name Your Guide</h2>
@@ -292,20 +267,20 @@ app.innerHTML = `
         <p class="help-text">Stored locally on this device.</p>
 
         <div class="button-group">
-          <button id="btnFinalSave">Save Guide</button>
-          <button class="secondary" id="backToTrim2">Back</button>
+          <button id="btnFinalSave" type="button">Save Guide</button>
+          <button class="secondary" id="backToTrim2" type="button">← Back</button>
         </div>
       </div>
     </div>
 
     <div id="savedScreen" class="screen">
-      <h1>My Saved Guides</h1>
+      <h1>📚 My Saved Guides</h1>
 
       <div class="button-group">
-        <button id="backToMain2">Back</button>
-        <button class="secondary" id="btnSelectDelete">Select + Delete</button>
-        <button class="danger" id="btnDeleteSelected" style="display:none;">Delete Selected (0)</button>
-        <button class="secondary" id="btnCancelSelect" style="display:none;">Cancel</button>
+        <button id="backToMain2" type="button">← Back</button>
+        <button class="secondary" id="btnSelectDelete" type="button">Select + Delete</button>
+        <button class="danger" id="btnDeleteSelected" type="button" style="display:none;">Delete Selected (0)</button>
+        <button class="secondary" id="btnCancelSelect" type="button" style="display:none;">Cancel</button>
       </div>
 
       <div id="savedGuidesList" class="guide-grid"></div>
@@ -313,16 +288,23 @@ app.innerHTML = `
 
     <div id="readerScreen" class="screen">
       <div class="button-group" id="readerButtonGroup">
-        <button id="backToGuides">Back</button>
-        <button class="secondary btn-fixed-width" id="btnFullscreen">Fullscreen</button>
-        <button class="secondary btn-fixed-width" id="btnTheme">Theme</button>
-        <button class="secondary" id="btnWordColors">Colors</button>
-        <button class="danger" id="btnDelete">Delete</button>
+        <button id="backToGuides" type="button">← Back</button>
+        <button class="secondary btn-fixed-width" id="btnFullscreen" type="button">⛶ Fullscreen</button>
+        <button class="secondary btn-fixed-width" id="btnTheme" type="button">🎨 Theme</button>
+        <button class="secondary" id="btnWordColors" type="button">🖍️ Colors</button>
+        <button class="danger" id="btnDelete" type="button">🗑️ Delete</button>
       </div>
 
       <div class="reader-container" id="readerContainer">
         <div class="reader-header">
-          <div class="reader-title" id="readerTitle"></div>
+          <div class="reader-header-top">
+            <div class="reader-title" id="readerTitle"></div>
+            <div class="reader-header-actions" id="readerHeaderActions" style="display:none;">
+              <button class="secondary reader-icon-btn" id="btnThemeInline" type="button" title="Theme">🎨</button>
+              <button class="secondary reader-icon-btn" id="btnWordColorsInline" type="button" title="Colors">🖍️</button>
+              <button class="fullscreen-exit-btn reader-icon-btn" id="fullscreenExitBtn" type="button" title="Exit Fullscreen">✕</button>
+            </div>
+          </div>
           <div class="reader-progress">
             <div class="reader-progress-bar">
               <div class="reader-progress-fill" id="readerProgressFill"></div>
@@ -332,14 +314,12 @@ app.innerHTML = `
         </div>
         <div class="reader-content" id="readerContent"></div>
       </div>
-
-      <button id="fullscreenExitBtn" class="fullscreen-exit-btn" style="display:none;">Exit Fullscreen</button>
     </div>
 
     <div id="toast" class="toast">
       <span class="toast-title" id="toastTitle">Saved</span>
       <span id="toastMessage"></span>
-      <button class="toast-close" id="toastClose">x</button>
+      <button class="toast-close" id="toastClose" type="button">×</button>
     </div>
 
     <div id="modal" class="modal" style="display:none">
@@ -347,8 +327,8 @@ app.innerHTML = `
         <div class="modal-title" id="modalTitle">Confirm</div>
         <div class="modal-body" id="modalBody"></div>
         <div class="modal-actions">
-          <button class="secondary" id="modalCancel">Cancel</button>
-          <button id="modalOk">OK</button>
+          <button class="secondary" id="modalCancel" type="button">Cancel</button>
+          <button id="modalOk" type="button">OK</button>
         </div>
       </div>
     </div>
@@ -370,25 +350,25 @@ app.innerHTML = `
                 <input type="color" id="colorInput" value="#ffff00">
               </div>
             </div>
-            <button id="btnAddWordColor">Add Highlight</button>
+            <button id="btnAddWordColor" type="button">Add Highlight</button>
           </div>
 
           <div class="word-colors-list" id="wordColorsList"></div>
         </div>
         <div class="modal-actions">
-          <button class="secondary" id="wordColorsClose">Close</button>
+          <button class="secondary" id="wordColorsClose" type="button">Close</button>
         </div>
       </div>
     </div>
 
     <div id="supportModal" class="modal" style="display:none">
       <div class="modal-card modal-compact">
-        <button class="modal-x" id="supportClose">x</button>
+        <button class="modal-x" id="supportClose" type="button">×</button>
         <div class="modal-title" id="supportTitle">Support</div>
         <div class="modal-body" id="supportBody">
-          Made by EERIE<br>
+          Made by <a href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a><br>
           <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
-            Buy Me a Coffee
+            Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
           </a>
         </div>
       </div>
@@ -408,9 +388,7 @@ function showSupportModal() {
   modal.classList.add('show');
   const close = () => hideSupportModal();
   const onBackdrop = (e) => { if (e.target === modal) close(); };
-  supportKeyHandler = (e) => {
-    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); }
-  };
+  supportKeyHandler = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); } };
   btn.addEventListener('click', close, { once: true });
   modal.addEventListener('click', onBackdrop, { once: true });
   document.addEventListener('keydown', supportKeyHandler, true);
@@ -583,32 +561,32 @@ async function deleteSelectedGuides() {
   updateSelectDeleteUI();
 }
 
-/* Import / Export: Backup file (primary) */
+/* Import / Export: Share Backup (primary, no files, no codes UI) */
+
 function setTab(which) {
   const exportPane = document.getElementById('exportPane');
   const importPane = document.getElementById('importPane');
   const tabExport = document.getElementById('tabExport');
   const tabImport = document.getElementById('tabImport');
 
-  if (which === 'export') {
-    exportPane.style.display = 'block';
-    importPane.style.display = 'none';
-    tabExport.disabled = true;
-    tabImport.disabled = false;
-  } else {
-    exportPane.style.display = 'none';
-    importPane.style.display = 'block';
-    tabExport.disabled = false;
-    tabImport.disabled = true;
-  }
+  const isExport = which === 'export';
+  exportPane.style.display = isExport ? 'block' : 'none';
+  importPane.style.display = isExport ? 'none' : 'block';
+
+  tabExport.classList.toggle('active', isExport);
+  tabImport.classList.toggle('active', !isExport);
+  tabExport.disabled = false;
+  tabImport.disabled = false;
+
   resetViewport();
 }
 
 async function refreshExportMetaOnly() {
   const guides = await bridge.readGuides();
   document.getElementById('exportCount').textContent = String(guides.length);
-  document.getElementById('backupMeta').textContent = lastBackup
-    ? `${lastBackup.createdAt} (${Math.round(lastBackup.bytes / 1024)} KB)${lastBackup.encrypted ? ' (encrypted)' : ''}`
+
+  document.getElementById('backupMeta').textContent = lastBackupMeta
+    ? `${lastBackupMeta.createdAt} (${Math.round(lastBackupMeta.bytes / 1024)} KB)${lastBackupMeta.encrypted ? ' 🔒' : ''}`
     : 'None';
 }
 
@@ -620,14 +598,35 @@ function showImportActions(show) {
   document.getElementById('importActions').style.display = show ? 'block' : 'none';
 }
 
-async function createBackupFile() {
+function showManualPaste(show) {
+  const ta = document.getElementById('backupPasteArea');
+  const btns = document.getElementById('backupManualButtons');
+  if (ta) ta.style.display = show ? 'block' : 'none';
+  if (btns) btns.style.display = show ? 'block' : 'none';
+}
+
+function clearImportUI() {
+  const backupPass = document.getElementById('backupPassImport');
+  if (backupPass) backupPass.value = '';
+
+  const ta = document.getElementById('backupPasteArea');
+  if (ta) ta.value = '';
+
+  setImportStatus('');
+  showImportActions(false);
+  showManualPaste(false);
+  pendingImport = null;
+  resetViewport();
+}
+
+async function shareBackup() {
   const guides = await bridge.readGuides();
   const pass = (document.getElementById('backupPassExport')?.value || '').trim();
 
   if (!pass) {
     const ok = await themedConfirm({
       title: 'No password set',
-      message: 'This backup will NOT be encrypted. Anyone with the file can read it.\nContinue?',
+      message: 'This backup will NOT be encrypted. Anyone who receives it can read it.\nContinue?',
       okText: 'Continue',
       cancelText: 'Cancel',
       danger: true
@@ -638,211 +637,94 @@ async function createBackupFile() {
   const { text, encrypted } = await encodeGuidesBackupToString(guides, pass);
   const bytes = new TextEncoder().encode(text).length;
 
-  if (lastBackup?.path) {
-    try { await Filesystem.deleteFile({ path: lastBackup.path, directory: Directory.Cache }); } catch {}
-  }
-
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const filename = `ggm-backup-${stamp}.ggm`;
-
-  // IMPORTANT: encoding must be UTF8, otherwise Capacitor assumes base64
-  await Filesystem.writeFile({
-    path: filename,
-    directory: Directory.Cache,
-    data: text,
-    encoding: Encoding.UTF8
-  });
-
-  const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Cache });
-
-  lastBackup = {
-    path: filename,
-    uri,
+  lastBackupText = text;
+  lastBackupMeta = {
     createdAt: new Date().toLocaleString(),
     bytes,
-    encrypted
+    encrypted,
+    guideCount: guides.length
   };
 
-  document.getElementById('btnShareBackup').disabled = false;
   await refreshExportMetaOnly();
-  showToast('Backup ready', encrypted ? 'Encrypted backup created' : 'Backup created (not encrypted)');
-}
 
-async function shareBackupFile() {
-  if (!lastBackup) {
-    await createBackupFile();
-    if (!lastBackup) return;
-  }
+  const payload = {
+    title: 'Game Guide Manager Backup',
+    text
+  };
+
   try {
-    await Share.share({
-      title: 'Game Guide Manager Backup',
-      url: lastBackup.uri,
-      dialogTitle: 'Share backup'
-    });
-    showToast('Shared', 'Backup shared');
-  } catch {
-    // ignore cancel
+    if (Capacitor?.isNativePlatform?.()) {
+      await Share.share(payload);
+    } else if (navigator.share) {
+      await navigator.share(payload);
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(text);
+      showToast('Copied', 'Backup copied to clipboard');
+      return;
+    }
+    showToast('Shared', encrypted ? 'Encrypted backup shared' : 'Backup shared (not encrypted)');
+  } catch (e) {
+    // User canceled share sheet -> ignore
   }
 }
 
-function clearImportUI() {
-  const codeEl = document.getElementById('importCode');
-  if (codeEl) codeEl.value = '';
-  const passEl = document.getElementById('backupPassImport');
-  if (passEl) passEl.value = '';
-  const fileInput = document.getElementById('backupFileInput');
-  if (fileInput) fileInput.value = '';
-  setImportStatus('');
-  showImportActions(false);
-  pendingImport = null;
-  resetViewport();
-}
-
-async function handleBackupFileChosen(file) {
+async function pasteBackupFromClipboard() {
   pendingImport = null;
   showImportActions(false);
+  showManualPaste(false);
   setImportStatus('');
 
-  const pass = (document.getElementById('backupPassImport')?.value || '').trim();
-
-  let text;
-  try { text = await file.text(); }
-  catch {
-    setImportStatus('<div class="error"><strong>Could not read file</strong></div>');
+  let text = '';
+  try {
+    if (!navigator.clipboard?.readText) throw new Error('Clipboard not available');
+    text = await navigator.clipboard.readText();
+  } catch {
+    showManualPaste(true);
+    setImportStatus(`<div class="error"><strong>Clipboard unavailable</strong><br>Paste manually below, then tap Validate.</div>`);
     return;
   }
+
+  text = String(text || '').trim();
+  if (!text) {
+    setImportStatus(`<div class="error"><strong>❌ Clipboard is empty</strong></div>`);
+    return;
+  }
+
+  await validateBackupText(text);
+}
+
+async function validateBackupFromTextarea() {
+  const ta = document.getElementById('backupPasteArea');
+  const text = String(ta?.value || '').trim();
+  if (!text) {
+    setImportStatus(`<div class="error"><strong>❌ Paste backup first</strong></div>`);
+    return;
+  }
+  await validateBackupText(text);
+}
+
+async function validateBackupText(text) {
+  const pass = (document.getElementById('backupPassImport')?.value || '').trim();
 
   try {
     const data = await decodeGuidesBackupFromString(text, pass);
-    pendingImport = { data, guideCount: data.guides.length };
+
+    const guideCount = Array.isArray(data?.guides) ? data.guides.length : 0;
+    pendingImport = { data, guideCount };
 
     setImportStatus(`
       <div class="success">
-        <strong>Valid backup!</strong><br>
+        <strong>✓ Backup loaded!</strong><br>
         Exported: ${escapeHtml(String(data.exportedAt || ''))}<br>
-        Guides: ${data.guides.length}
+        Guides: ${guideCount}
       </div>
     `);
 
-    document.getElementById('importGuideCount').textContent = String(data.guides.length);
+    document.getElementById('importGuideCount').textContent = String(guideCount);
     showImportActions(true);
   } catch (e) {
-    setImportStatus(`<div class="error"><strong>Import failed</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
-  }
-
-  resetViewport();
-}
-
-/* Legacy: compressed codes (small exports only) */
-function uint8ToB64(u8) {
-  // Chunk to avoid call stack / arg limits
-  let s = '';
-  const chunk = 0x8000;
-  for (let i = 0; i < u8.length; i += chunk) {
-    s += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
-  }
-  return btoa(s);
-}
-
-async function generateExportCode() {
-  const guides = await bridge.readGuides();
-  const data = { v: 1, app: 'ggm', exportedAt: new Date().toISOString(), guides };
-  const json = JSON.stringify(data);
-
-  const compressed = pako.deflate(json, { level: 9 });
-  const base64 = uint8ToB64(compressed);
-  const code = `GGM2:${base64}`;
-
-  document.getElementById('exportCode').value = code;
-  document.getElementById('btnCopyExport').disabled = false;
-  document.getElementById('btnShareExport').disabled = false;
-
-  showToast('Generated', `Code for ${guides.length} guide${guides.length === 1 ? '' : 's'}`);
-  resetViewport();
-}
-
-async function copyExportCode() {
-  const ta = document.getElementById('exportCode');
-  const value = ta.value || '';
-  if (!value) return;
-
-  try {
-    await navigator.clipboard.writeText(value);
-    showToast('Copied', 'Export code copied');
-  } catch {
-    ta.focus();
-    ta.select();
-    try {
-      document.execCommand('copy');
-      showToast('Copied', 'Export code copied');
-    } catch {
-      showToast('Copy', 'Select all and copy manually');
-    }
-  }
-}
-
-async function shareExportCode() {
-  const code = document.getElementById('exportCode').value || '';
-  if (!code) return;
-
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: 'Game Guide Export', text: code });
-      showToast('Shared', 'Export code shared');
-    } catch (e) {
-      if (e?.name !== 'AbortError') copyExportCode();
-    }
-  } else {
-    copyExportCode();
-  }
-}
-
-async function validateImportCode() {
-  let raw = (document.getElementById('importCode').value || '').trim();
-  pendingImport = null;
-  showImportActions(false);
-  setImportStatus('');
-
-  if (!raw) {
-    setImportStatus('<div class="error"><strong>Paste code first</strong></div>');
-    return;
-  }
-
-  raw = raw.replace(/\s+/g, '');
-  if (!raw.startsWith('GGM2:')) {
-    setImportStatus('<div class="error"><strong>Invalid format</strong><br>Expected: GGM2:...</div>');
-    return;
-  }
-
-  const base64 = raw.substring(5);
-
-  try {
-    const binaryString = atob(base64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
-
-    const decompressed = pako.inflate(bytes, { to: 'string' });
-    const data = JSON.parse(decompressed);
-
-    if (!data || data.v !== 1 || data.app !== 'ggm' || !Array.isArray(data.guides)) {
-      setImportStatus('<div class="error"><strong>Invalid data</strong></div>');
-      return;
-    }
-
-    pendingImport = { data, guideCount: data.guides.length };
-
-    setImportStatus(`
-      <div class="success">
-        <strong>Valid code!</strong><br>
-        Exported: ${escapeHtml(String(data.exportedAt || ''))}<br>
-        Guides: ${data.guides.length}
-      </div>
-    `);
-
-    document.getElementById('importGuideCount').textContent = String(data.guides.length);
-    showImportActions(true);
-  } catch (e) {
-    setImportStatus(`<div class="error"><strong>Failed to parse</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
+    setImportStatus(`<div class="error"><strong>❌ Import failed</strong><br>${escapeHtml(String(e?.message || e))}</div>`);
   }
 
   resetViewport();
@@ -856,8 +738,10 @@ function makeUniqueId(existing) {
 }
 
 async function importReplaceAll() {
-  if (!pendingImport) return;
-  const imported = pendingImport.data.guides.map(g => ({
+  if (!pendingImport?.data) return;
+
+  const list = Array.isArray(pendingImport.data.guides) ? pendingImport.data.guides : [];
+  const imported = list.map(g => ({
     id: Number(g.id) || Date.now(),
     name: String(g.name || 'Untitled'),
     content: String(g.content || ''),
@@ -865,20 +749,25 @@ async function importReplaceAll() {
     dateAdded: String(g.dateAdded || new Date().toISOString()),
     wordColors: g.wordColors || {}
   }));
+
   await bridge.writeGuides(imported);
   showToast('Imported', `Imported ${imported.length} guides`);
   await updateGuideCount();
   pendingImport = null;
   showImportActions(false);
   setImportStatus('');
+  showManualPaste(false);
   await showScreen('mainScreen');
 }
 
 async function importMergeKeepCurrent() {
-  if (!pendingImport) return;
+  if (!pendingImport?.data) return;
+
   const current = await bridge.readGuides();
   const existingIds = new Set(current.map(g => Number(g.id)));
-  const imported = pendingImport.data.guides.map(g => {
+
+  const list = Array.isArray(pendingImport.data.guides) ? pendingImport.data.guides : [];
+  const imported = list.map(g => {
     const obj = {
       id: Number(g.id) || 0,
       name: String(g.name || 'Untitled'),
@@ -891,6 +780,7 @@ async function importMergeKeepCurrent() {
     else existingIds.add(obj.id);
     return obj;
   });
+
   const merged = current.concat(imported);
   await bridge.writeGuides(merged);
   showToast('Imported', `Imported ${imported.length} guides (merged)`);
@@ -898,6 +788,7 @@ async function importMergeKeepCurrent() {
   pendingImport = null;
   showImportActions(false);
   setImportStatus('');
+  showManualPaste(false);
   await showScreen('mainScreen');
 }
 
@@ -1102,23 +993,20 @@ async function loadFromUrl() {
       content = await bridge.fetchUrl(target);
     } catch (e) {
       const msg = String(e?.message || e || '');
-      if (
-        typeof bridge.fetchUrlBrowser === 'function' &&
-        (msg.includes('HTTP 403') || msg.includes('Blocked by bot protection'))
-      ) {
+      if (typeof bridge.fetchUrlBrowser === 'function' &&
+          (msg.includes('HTTP 403') || msg.includes('Blocked by bot protection'))) {
         content = await bridge.fetchUrlBrowser(target);
       } else {
         throw e;
       }
     }
-
     if (/<html[\s>]/i.test(content) || /<pre[\s>]/i.test(content)) {
       content = extractTextFromHtml(content);
     }
     loadedContent = (content || '').trim();
     if (!loadedContent) throw new Error('Loaded content was empty.');
     loadingDiv.style.display = 'none';
-    errorDiv.innerHTML = '<div class="success">Loaded!</div>';
+    errorDiv.innerHTML = `<div class="success">✓ Loaded!</div>`;
     resetViewport();
     setTimeout(() => (errorDiv.innerHTML = ''), 2500);
     proceedToTrim();
@@ -1127,7 +1015,7 @@ async function loadFromUrl() {
     const msg = escapeHtml(String(err?.message || err || 'Unknown error'));
     errorDiv.innerHTML = `
       <div class="error">
-        <strong>Unable to load URL</strong><br><br>
+        <strong>❌ Unable to load URL</strong><br><br>
         ${msg}<br><br>
         <p><strong>Try:</strong></p>
         <ol style="text-align:left; margin:10px 20px; line-height:1.8;">
@@ -1155,7 +1043,6 @@ async function finalSaveGuide() {
     wordColors: {}
   });
   await bridge.writeGuides(guides);
-
   loadedContent = '';
   originalLines = [];
   currentGuideId = null;
@@ -1164,8 +1051,7 @@ async function finalSaveGuide() {
   document.getElementById('urlLoader').style.display = 'none';
   document.getElementById('textPaster').style.display = 'none';
   document.getElementById('editContent').value = '';
-
-  showToast('Saved', 'Guide saved');
+  showToast('Saved', 'Guide saved!');
   await updateGuideCount();
   await showScreen('mainScreen');
 }
@@ -1173,7 +1059,6 @@ async function finalSaveGuide() {
 async function loadSavedGuides() {
   const guides = await bridge.readGuides();
   const container = document.getElementById('savedGuidesList');
-
   if (!guides.length) {
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align:center; padding:50px; color:#8b929a;">
@@ -1183,7 +1068,6 @@ async function loadSavedGuides() {
     `;
     return;
   }
-
   container.innerHTML = guides.map(g => {
     const isSelected = selectedGuideIds.has(Number(g.id));
     const cls = `guide-card ${selectMode ? 'selectable' : ''} ${isSelected ? 'selected' : ''}`;
@@ -1203,7 +1087,6 @@ async function loadSavedGuides() {
       </div>
     `;
   }).join('');
-
   container.querySelectorAll('.guide-card').forEach(card => {
     const id = Number(card.dataset.id);
     const cb = card.querySelector('input[type="checkbox"]');
@@ -1218,7 +1101,6 @@ async function loadSavedGuides() {
       else openGuide(id);
     });
   });
-
   updateSelectDeleteUI();
 }
 
@@ -1227,14 +1109,11 @@ async function openGuide(id) {
   const guides = await bridge.readGuides();
   const guide = guides.find(g => g.id === id);
   if (!guide) return;
-
   wordColors = guide.wordColors || {};
   document.getElementById('readerTitle').textContent = guide.name;
   applyWordHighlights(guide.content);
   setProgressUI(guide.progress);
-
   await showScreen('readerScreen');
-
   setTimeout(() => {
     const c = document.getElementById('readerContent');
     const maxScroll = c.scrollHeight - c.clientHeight;
@@ -1255,10 +1134,7 @@ function applyWordHighlights(content) {
     const color = wordColors[word];
     const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(`\\b${escapedWord}\\b`, 'gi');
-    html = html.replace(
-      regex,
-      `<span style="background-color: ${color}; padding: 2px 4px; border-radius: 3px;">$&</span>`
-    );
+    html = html.replace(regex, `<span style="background-color: ${color}; padding: 2px 4px; border-radius: 3px;">$&</span>`);
   }
   readerContent.innerHTML = html;
 }
@@ -1315,7 +1191,7 @@ async function updateGuideCount() {
   document.getElementById('guideCount').textContent = `${count} guide${count === 1 ? '' : 's'}`;
 }
 
-/* Fullscreen */
+/* FULLSCREEN MODE */
 function toggleFullscreen() {
   if (isFullscreen) exitFullscreen();
   else enterFullscreen();
@@ -1325,32 +1201,23 @@ function enterFullscreen() {
   isFullscreen = true;
   document.body.classList.add('fullscreen');
 
-  const exitBtn = document.getElementById('fullscreenExitBtn');
-  exitBtn.style.display = 'block';
+  const actions = document.getElementById('readerHeaderActions');
+  if (actions) actions.style.display = 'flex';
 
-  const btn = document.getElementById('btnFullscreen');
-  btn.textContent = 'Exit';
-
+  // Hide external controls (they get covered by the fixed reader container anyway)
   const buttonGroup = document.getElementById('readerButtonGroup');
-  Array.from(buttonGroup.children).forEach(button => {
-    if (button.id !== 'btnFullscreen' && button.id !== 'btnTheme' && button.id !== 'btnWordColors') {
-      button.style.display = 'none';
-    }
-  });
+  if (buttonGroup) buttonGroup.style.display = 'none';
 }
 
 function exitFullscreen() {
   isFullscreen = false;
   document.body.classList.remove('fullscreen');
 
-  const exitBtn = document.getElementById('fullscreenExitBtn');
-  exitBtn.style.display = 'none';
-
-  const btn = document.getElementById('btnFullscreen');
-  btn.textContent = 'Fullscreen';
+  const actions = document.getElementById('readerHeaderActions');
+  if (actions) actions.style.display = 'none';
 
   const buttonGroup = document.getElementById('readerButtonGroup');
-  Array.from(buttonGroup.children).forEach(button => { button.style.display = ''; });
+  if (buttonGroup) buttonGroup.style.display = '';
 }
 
 /* Theme */
@@ -1359,23 +1226,21 @@ function cycleTheme() {
   const currentIndex = themes.indexOf(readerTheme);
   const nextIndex = (currentIndex + 1) % themes.length;
   readerTheme = themes[nextIndex];
-
   const container = document.getElementById('readerContainer');
   container.className = 'reader-container';
-
   const btn = document.getElementById('btnTheme');
   if (readerTheme === 'light') {
     container.classList.add('theme-light');
-    btn.textContent = 'Light';
+    if (btn) btn.textContent = '🎨 Light';
   } else if (readerTheme === 'contrast') {
     container.classList.add('theme-contrast');
-    btn.textContent = 'Contrast';
+    if (btn) btn.textContent = '🎨 Contrast';
   } else {
-    btn.textContent = 'Dark';
+    if (btn) btn.textContent = '🎨 Theme';
   }
 }
 
-/* Word colors */
+/* Word Colors */
 function showWordColorsModal() {
   const modal = document.getElementById('wordColorsModal');
   modal.style.display = 'flex';
@@ -1400,7 +1265,7 @@ function refreshWordColorsList() {
     <div class="word-color-item">
       <div class="word-color-sample" style="background-color: ${color};"></div>
       <div class="word-color-text">${escapeHtml(word)}</div>
-      <button class="danger word-color-remove" data-word="${escapeHtml(word)}">Remove</button>
+      <button class="danger word-color-remove" data-word="${escapeHtml(word)}" type="button">Remove</button>
     </div>
   `).join('');
   list.querySelectorAll('.word-color-remove').forEach(btn => {
@@ -1513,6 +1378,8 @@ document.getElementById('btnFullscreen').addEventListener('click', toggleFullscr
 document.getElementById('fullscreenExitBtn').addEventListener('click', exitFullscreen);
 document.getElementById('btnTheme').addEventListener('click', cycleTheme);
 document.getElementById('btnWordColors').addEventListener('click', showWordColorsModal);
+document.getElementById('btnThemeInline').addEventListener('click', cycleTheme);
+document.getElementById('btnWordColorsInline').addEventListener('click', showWordColorsModal);
 
 // Word colors
 document.getElementById('wordColorsClose').addEventListener('click', hideWordColorsModal);
@@ -1578,27 +1445,13 @@ document.addEventListener('keydown', (e) => {
   }
 }, true);
 
-// Import/Export tabs
+// Import/Export
 document.getElementById('tabExport').addEventListener('click', () => setTab('export'));
 document.getElementById('tabImport').addEventListener('click', () => setTab('import'));
 
-// Backup file
-document.getElementById('btnCreateBackup').addEventListener('click', createBackupFile);
-document.getElementById('btnShareBackup').addEventListener('click', shareBackupFile);
-document.getElementById('btnPickBackup').addEventListener('click', () => {
-  document.getElementById('backupFileInput').click();
-});
-document.getElementById('backupFileInput').addEventListener('change', async (e) => {
-  const file = e.target.files?.[0];
-  if (file) await handleBackupFileChosen(file);
-});
-
-// Legacy code export/import
-document.getElementById('btnGenerateExport').addEventListener('click', generateExportCode);
-document.getElementById('btnCopyExport').addEventListener('click', copyExportCode);
-document.getElementById('btnShareExport').addEventListener('click', shareExportCode);
-
-document.getElementById('btnValidateImport').addEventListener('click', validateImportCode);
+document.getElementById('btnShareBackup').addEventListener('click', shareBackup);
+document.getElementById('btnPasteBackup').addEventListener('click', pasteBackupFromClipboard);
+document.getElementById('btnValidateBackupText').addEventListener('click', validateBackupFromTextarea);
 document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
 
 document.getElementById('btnImportReplace').addEventListener('click', importReplaceAll);
@@ -1608,7 +1461,8 @@ setTab('export');
 updateGuideCount();
 
 window.addEventListener('resize', resetViewport);
-window.addEventListener('orientationchange', () => { setTimeout(resetViewport, 100); });
+window.addEventListener('orientationchange', () => {
+  setTimeout(resetViewport, 100);
+});
 
-// show support modal on app open
 setTimeout(() => showSupportModal(), 0);
