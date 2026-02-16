@@ -176,7 +176,7 @@ app.innerHTML = `
           <button id="btnUrl" type="button">🌐 Load from URL</button>
         </div>
 
-      <input type="file" id="fileInput" accept="application/pdf,text/plain,.pdf,.txt" style="display:none">
+      <input type="file" id="fileInput" style="display:none">
 
         <div id="textPaster" style="display:none; margin-top: 20px;">
           <label>Paste Guide Text:</label>
@@ -380,11 +380,12 @@ app.innerHTML = `
 
 const fileInput = document.getElementById('fileInput');
 
-if (Capacitor?.getPlatform?.() === 'ios') {
-  fileInput.accept = '*/*'; // let iOS picker show PDFs reliably
-} else {
-  fileInput.accept = 'application/pdf,text/plain,.pdf,.txt';
-}
+const isIOS =
+  Capacitor?.getPlatform?.() === 'ios' ||
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+fileInput.accept = isIOS ? '*/*' : 'application/pdf,text/plain,.pdf,.txt';
 
 document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
 
@@ -976,6 +977,16 @@ function handleFileLoad(event) {
     file.type === 'application/pdf' ||
     /\.pdf$/i.test(file.name || '');
 
+    const isText =
+  (file.type && file.type.startsWith('text/')) ||
+  /\.txt$/i.test(file.name || '');
+
+if (!isPdf && !isText) {
+  alert('Unsupported file type. Please select a PDF or TXT file.');
+  event.target.value = '';
+  return;
+}
+
   if (isPdf) {
     (async () => {
       try {
@@ -1380,11 +1391,11 @@ function base64ToText(b64) {
 }
 
 async function pickFileNative() {
-  const result = await FilePicker.pickFiles({
-    types: ['application/pdf', 'text/plain'], // PDFs + text :contentReference[oaicite:2]{index=2}
-    limit: 1,
-    readData: true // return base64 :contentReference[oaicite:3]{index=3}
-  });
+const result = await FilePicker.pickFiles({
+  limit: 1,
+  readData: true
+});
+
 
   const f = result?.files?.[0];
   if (!f) return;
@@ -1403,15 +1414,20 @@ async function pickFileNative() {
     return;
   }
 
-  // text/plain (or fallback)
-  if (f.data) {
-    loadedContent = base64ToText(f.data).trim();
-    if (!loadedContent) throw new Error('Text file was empty.');
-    proceedToTrim();
-    return;
-  }
+  const isText =
+  (mime && mime.startsWith('text/')) ||
+  mime === 'text/plain' ||
+  /\.txt$/i.test(name);
 
-  throw new Error('Could not read text data.');
+if (isText) {
+  if (!f.data) throw new Error('Could not read text data.');
+  loadedContent = base64ToText(f.data).trim();
+  if (!loadedContent) throw new Error('Text file was empty.');
+  proceedToTrim();
+  return;
+}
+
+throw new Error('Unsupported file type. Please pick a PDF or TXT.');
 }
 
 /* Wire up events */
