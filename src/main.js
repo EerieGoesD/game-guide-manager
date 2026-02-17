@@ -684,12 +684,17 @@ async function generateShareLink() {
       btn.textContent = `Uploading ${i + 1} / ${chunks.length}...`;
 
       const { text } = await encodeGuidesBackupToString(chunks[i], '');
-      const { payloadB64, keyB64 } = await pbEncrypt(text);
+      const { payloadB64, keyB64, ivB64 } = await pbEncrypt(text);
 
       const body = JSON.stringify({
         v: 2,
         ct: payloadB64,
-        adata: [[], 'plaintext', 0, 0],
+        adata: [
+          [ivB64, ivB64, 100000, 256, 128, 'aes', 'gcm', 'none'],
+          'plaintext',
+          0,
+          0
+        ],
         meta: { expire: '1week' }
       });
 
@@ -1501,7 +1506,8 @@ async function pbEncrypt(plaintext) {
   combined.set(iv, 0);
   combined.set(new Uint8Array(cipherBuf), iv.length);
   const payloadB64 = bytesToBase64(combined);
-  return { payloadB64, keyB64 };
+  const ivB64 = bytesToBase64(iv);
+  return { payloadB64, keyB64, ivB64 };
 }
 
 async function pbDecrypt(payloadB64, keyB64) {
