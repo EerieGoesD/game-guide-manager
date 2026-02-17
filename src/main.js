@@ -63,7 +63,7 @@ app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>📖 Reader Vault Manager</h1>
+      <h1>📖 Reader Vault</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
@@ -381,8 +381,8 @@ app.innerHTML = `
         <button class="modal-x" id="supportClose" type="button">×</button>
         <div class="modal-title" id="supportTitle">Support</div>
         <div class="modal-body" id="supportBody">
-<p style="margin-bottom:10px;"><strong>📖 Reader Vault Manager</strong> lets you save game guides, walkthroughs, and any long-form text for offline reading.</p>
-      <p style="margin-bottom:6px;">📥 <strong>Load</strong> a guide from a file, paste text, or enter a URL.</p>
+	<p style="margin-bottom:10px;"><strong>📖 Reader Vault</strong> lets you save books, texts, guides, and any long-form text for offline reading.</p>
+	<p style="margin-bottom:6px;">📥 <strong>Load</strong> a text from a file, paste text, or enter a URL. When loading from a URL, the app fetches the page and strips away all the HTML — ads, menus, buttons — leaving just the plain readable text.</p>
       <p style="margin-bottom:6px;">✂️ <strong>Trim</strong> the text, then name and save it.</p>
       <p style="margin-bottom:6px;">📚 <strong>Read</strong> your guides with progress tracking and word highlighting.</p>
       <p style="margin-bottom:14px;">📦 <strong>Import/Export</strong> to sync guides across devices via an encrypted link.</p>
