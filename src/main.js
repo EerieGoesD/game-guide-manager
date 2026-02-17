@@ -81,13 +81,13 @@ app.innerHTML = `
           <p>Sync guides between devices</p>
         </div>
 
-        <div class="menu-button" id="btnInstructions">
+<div class="menu-button" id="btnInstructions">
           <h3>ℹ️ Instructions</h3>
           <p>How to use this app</p>
         </div>
+      </div>
 
-      <p class="help-text">
-        Platform: <strong id="platformLabel"></strong>
+      <p class="help-text">        Platform: <strong id="platformLabel"></strong>
       </p>
 
       <div class="footer">
