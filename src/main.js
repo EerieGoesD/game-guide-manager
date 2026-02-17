@@ -699,6 +699,7 @@ async function generateShareLink() {
       });
 
 let result = null;
+      const hostErrors = [];
       for (const host of PRIVATEBIN_HOSTS) {
         try {
           const candidate = await xhrPost(host, body);
@@ -706,10 +707,12 @@ let result = null;
             result = { ...candidate, _host: host };
             break;
           }
-        } catch {}
+          hostErrors.push(`${host}: ${candidate.message || 'status=' + candidate.status}`);
+        } catch (e) {
+          hostErrors.push(`${host}: ${e.message}`);
+        }
       }
-      if (!result) throw new Error(`Upload failed for batch ${i + 1}: all hosts unavailable`);
-    
+      if (!result) throw new Error(`Upload failed for batch ${i + 1}:\n${hostErrors.join('\n')}`);    
     }
 
     document.getElementById('generatedLinkBox').value = links.join('\n');
@@ -1442,7 +1445,7 @@ function xhrPost(url, body) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
-    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Content-Type', 'text/plain;charset=UTF-8');
     xhr.setRequestHeader('X-Requested-With', 'JSONHttpRequest');
     xhr.timeout = 15000;
     xhr.onload = () => {
