@@ -63,24 +63,28 @@ app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>🎮 Game Guide Manager</h1>
+      <h1>📖 Reader Vault Manager</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
-          <h3>📥 Load New Guide</h3>
+          <h3>📥 Load New Book/Text</h3>
           <p>From file, paste, or URL</p>
         </div>
 
         <div class="menu-button" id="btnSaved">
-          <h3>📚 My Saved Guides</h3>
+          <h3>📚 My Saved Books</h3>
           <p id="guideCount">0 guides</p>
         </div>
 
-        <div class="menu-button" id="btnIO">
+<div class="menu-button" id="btnIO">
           <h3>📦 Import / Export</h3>
           <p>Sync guides between devices</p>
         </div>
-      </div>
+
+        <div class="menu-button" id="btnInstructions">
+          <h3>ℹ️ Instructions</h3>
+          <p>How to use this app</p>
+        </div>
 
       <p class="help-text">
         Platform: <strong id="platformLabel"></strong>
@@ -377,11 +381,15 @@ app.innerHTML = `
         <button class="modal-x" id="supportClose" type="button">×</button>
         <div class="modal-title" id="supportTitle">Support</div>
         <div class="modal-body" id="supportBody">
-          Made by <a href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a><br>
-          <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
-            Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
-          </a>
-        </div>
+<p style="margin-bottom:10px;"><strong>📖 Reader Vault Manager</strong> lets you save game guides, walkthroughs, and any long-form text for offline reading.</p>
+      <p style="margin-bottom:6px;">📥 <strong>Load</strong> a guide from a file, paste text, or enter a URL.</p>
+      <p style="margin-bottom:6px;">✂️ <strong>Trim</strong> the text, then name and save it.</p>
+      <p style="margin-bottom:6px;">📚 <strong>Read</strong> your guides with progress tracking and word highlighting.</p>
+      <p style="margin-bottom:14px;">📦 <strong>Import/Export</strong> to sync guides across devices via an encrypted link.</p>
+      Made by <a href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a><br>
+      <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
+        Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
+      </a>        </div>
       </div>
     </div>
 
@@ -1617,7 +1625,7 @@ throw new Error('Unsupported file type. Please pick a PDF or TXT.');
 document.getElementById('btnLoadNew').addEventListener('click', () => showScreen('loadScreen'));
 document.getElementById('btnSaved').addEventListener('click', () => showScreen('savedScreen'));
 document.getElementById('btnIO').addEventListener('click', () => showScreen('ioScreen'));
-
+document.getElementById('btnInstructions').addEventListener('click', () => showSupportModal());
 document.getElementById('backToMain').addEventListener('click', () => showScreen('mainScreen'));
 document.getElementById('backToMain2').addEventListener('click', () => {
   if (selectMode) setSelectMode(false);

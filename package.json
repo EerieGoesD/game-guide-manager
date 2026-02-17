@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "author": "EERIE",
-  "description": "Cross-platform Game Guide Manager (Electron + Capacitor) with local storage and URL loading",
+  "description": "Cross-platform Text Reader Manager (Electron + Capacitor) with local storage and URL loading",
   "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
@@ -42,7 +42,7 @@
   },
   "build": {
     "appId": "com.eerie.guidemanager",
-    "productName": "Guide Manager",
+    "productName": "Reader Vault",
     "directories": {
       "output": "release",
       "buildResources": "build"
