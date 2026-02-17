@@ -25,14 +25,10 @@
     "@capacitor/ios": "^8.1.0",
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
-<<<<<<< Updated upstream
     "@capgo/capacitor-file-picker": "^8.1.2",
     "axios": "^1.6.2",
+    "pako": "^2.1.0",
     "pdfjs-dist": "^5.4.624"
-=======
-    "axios": "^1.6.2",
-    "pako": "^2.1.0"
->>>>>>> Stashed changes
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
@@ -52,8 +48,8 @@
       "buildResources": "build"
     },
     "files": [
-      "dist/**",
-      "electron/**",
+      "dist/",
+      "electron/",
       "build/icon.png",
       "build/icon.ico",
       "package.json"
