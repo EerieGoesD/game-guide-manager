@@ -679,10 +679,13 @@ async function generateShareLink() {
       }
     }
 
-    const links = [];
+const links = [];
     for (let i = 0; i < chunks.length; i++) {
+      if (i > 0) {
+        btn.textContent = `Waiting before next upload...`;
+        await new Promise(r => setTimeout(r, 12000));
+      }
       btn.textContent = `Uploading ${i + 1} / ${chunks.length}...`;
-
       const { text } = await encodeGuidesBackupToString(chunks[i], '');
       const { payloadB64, keyB64, ivB64 } = await pbEncrypt(text);
 
@@ -712,7 +715,8 @@ let result = null;
           hostErrors.push(`${host}: ${e.message}`);
         }
       }
-      if (!result) throw new Error(`Upload failed for batch ${i + 1}:\n${hostErrors.join('\n')}`);    
+if (!result) throw new Error(`Upload failed for batch ${i + 1}:\n${hostErrors.join('\n')}`);
+      links.push(`${result._host}/?${result.id}#${keyB64}`);
     }
 
     document.getElementById('generatedLinkBox').value = links.join('\n');
