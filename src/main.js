@@ -687,13 +687,13 @@ const links = [];
       }
       btn.textContent = `Uploading ${i + 1} / ${chunks.length}...`;
       const { text } = await encodeGuidesBackupToString(chunks[i], '');
-      const { payloadB64, keyB64, ivB64 } = await pbEncrypt(text);
+      const { payloadB64, keyB64, ivB64, saltB64 } = await pbEncrypt(text);
 
       const body = JSON.stringify({
         v: 2,
         ct: payloadB64,
         adata: [
-          [ivB64, ivB64, 100000, 256, 128, 'aes', 'gcm', 'none'],
+          [ivB64, saltB64, 100000, 256, 128, 'aes', 'gcm', 'none'],
           'plaintext',
           0,
           0
@@ -1501,7 +1501,10 @@ async function pbEncrypt(plaintext) {
   const key = await crypto.subtle.generateKey(
     { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']
   );
-  const iv = crypto.getRandomValues(new Uint8Array(12));
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));      // OK
+  const salt = crypto.getRandomValues(new Uint8Array(8));    // IMPORTANT: base64 <= 14 chars
+
   const encoded = new TextEncoder().encode(plaintext);
   const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
 
@@ -1512,9 +1515,12 @@ async function pbEncrypt(plaintext) {
   const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(cipherBuf), iv.length);
+
   const payloadB64 = bytesToBase64(combined);
   const ivB64 = bytesToBase64(iv);
-  return { payloadB64, keyB64, ivB64 };
+  const saltB64 = bytesToBase64(salt);
+
+  return { payloadB64, keyB64, ivB64, saltB64 };
 }
 
 async function pbDecrypt(payloadB64, keyB64) {
