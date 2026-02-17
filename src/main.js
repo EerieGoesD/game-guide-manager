@@ -6,9 +6,7 @@ import { encodeGuidesBackupToString, decodeGuidesBackupFromString } from './back
 import { extractTextFromPdfArrayBuffer } from './pdfToText.js';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
-import { Share } from '@capacitor/share';
 import { CapgoFilePicker as FilePicker } from '@capgo/capacitor-file-picker';
-import pako from 'pako';
 
 // Viewport fix
 function resetViewport() {
@@ -53,7 +51,6 @@ let wordColors = {};
 
 // Backup meta (no files, no codes UI)
 let lastBackupMeta = null; // { createdAt, bytes, encrypted, guideCount }
-let lastBackupText = '';   // kept only in-memory to re-share if needed
 const PRIVATEBIN_HOSTS = [
   'https://privatebin.net',
   'https://bin.nixnet.services',
@@ -112,15 +109,13 @@ app.innerHTML = `
 
         <div id="exportPane" style="margin-top:16px;">
           <h2>Share Backup (recommended)</h2>
-          <p class="help-text">
-            Creates a compressed backup of all your guides. If you set a password, it is encrypted.
-            No local file is created; the backup is shared as text via the share sheet.
+<p class="help-text">
+            Creates an encrypted backup of all your guides and generates a secure link.
+            The link expires in 1 week. Share it to your other device, then paste it in the Import tab.
           </p>
 
-          <label for="backupPassExport">Backup password (optional but recommended):</label>
-          <input type="text" id="backupPassExport" placeholder="Choose a password you will remember" autocomplete="off">
-
 <div class="button-group">
+
             <button id="btnGenerateLink" type="button">🔗 Generate Link</button>
           </div>
 
@@ -136,12 +131,14 @@ app.innerHTML = `
             </p>
           </div>
 
-          <div class="selection-info">
+<div class="selection-info">
             <strong>Guides:</strong> <span id="exportCount">0</span><br>
             <strong>Last backup:</strong> <span id="backupMeta">None</span>
           </div>
-          
+        </div>
+
         <div id="importPane" style="margin-top:16px; display:none;">
+        
           <h2>Import Backup</h2>
           <p class="help-text">
             On the device you exported from, share the backup to any app (Notes/Messages/Email), then copy the entire backup text.
@@ -621,13 +618,6 @@ function showImportActions(show) {
   document.getElementById('importActions').style.display = show ? 'block' : 'none';
 }
 
-function showManualPaste(show) {
-  const ta = document.getElementById('backupPasteArea');
-  const btns = document.getElementById('backupManualButtons');
-  if (ta) ta.style.display = show ? 'block' : 'none';
-  if (btns) btns.style.display = show ? 'block' : 'none';
-}
-
 function clearImportUI() {
   const linkInput = document.getElementById('importLinkInput');
   if (linkInput) linkInput.value = '';
@@ -703,25 +693,28 @@ async function generateShareLink() {
         meta: { expire: '1week' }
       });
 
-      let result;
-      try {
-        const raw = await fetch(PRIVATEBIN_HOST, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'JSONHttpRequest'
-          },
-          body
-        });
-        result = await raw.json();
-      } catch (fetchErr) {
-        throw new Error(`Upload failed for batch ${i + 1}: ${String(fetchErr?.message || fetchErr)}`);
+let result = null;
+      for (const host of PRIVATEBIN_HOSTS) {
+        
+        try {
+          const raw = await fetch(host, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Requested-With': 'JSONHttpRequest'
+            },
+            body
+          });
+          const candidate = await raw.json();
+          if (candidate.status === 0) {
+            result = { ...candidate, _host: host };
+            break;
+          }
+        } catch {}
       }
-
-      if (result.status !== 0) throw new Error(result.message || `Upload failed for batch ${i + 1}`);
-
-      links.push(`${PRIVATEBIN_HOST}/?${result.id}#${keyB64}`);
-    }
+      if (!result) throw new Error(`Upload failed for batch ${i + 1}: all hosts unavailable`);
+links.push(`${result._host}/?${result.id}#${keyB64}`);
+}
 
     document.getElementById('generatedLinkBox').value = links.join('\n');
     document.getElementById('generatedLinkSection').style.display = 'block';
@@ -747,41 +740,6 @@ async function generateShareLink() {
     btn.textContent = '🔗 Generate Link';
     btn.disabled = false;
   }
-}
-
-async function pasteBackupFromClipboard() {
-  pendingImport = null;
-  showImportActions(false);
-  showManualPaste(false);
-  setImportStatus('');
-
-  let text = '';
-  try {
-    if (!navigator.clipboard?.readText) throw new Error('Clipboard not available');
-    text = await navigator.clipboard.readText();
-  } catch {
-    showManualPaste(true);
-    setImportStatus(`<div class="error"><strong>Clipboard unavailable</strong><br>Paste manually below, then tap Validate.</div>`);
-    return;
-  }
-
-  text = String(text || '').trim();
-  if (!text) {
-    setImportStatus(`<div class="error"><strong>❌ Clipboard is empty</strong></div>`);
-    return;
-  }
-
-  await validateBackupText(text);
-}
-
-async function validateBackupFromTextarea() {
-  const ta = document.getElementById('backupPasteArea');
-  const text = String(ta?.value || '').trim();
-  if (!text) {
-    setImportStatus(`<div class="error"><strong>❌ Paste backup first</strong></div>`);
-    return;
-  }
-  await validateBackupText(text);
 }
 
 async function validateBackupText(text, pass) {
@@ -836,9 +794,7 @@ async function importReplaceAll() {
   pendingImport = null;
   showImportActions(false);
   setImportStatus('');
-  showManualPaste(false);
-  await showScreen('mainScreen');
-}
+  await showScreen('mainScreen');}
 
 async function importMergeKeepCurrent() {
   if (!pendingImport?.data) return;
@@ -868,7 +824,6 @@ async function importMergeKeepCurrent() {
   pendingImport = null;
   showImportActions(false);
   setImportStatus('');
-  showManualPaste(false);
   await showScreen('mainScreen');
 }
 
@@ -895,7 +850,8 @@ async function importFromLink() {
   pendingImport = null;
 
   try {
-    const fetchUrl = `${PRIVATEBIN_HOST}/?${pasteId}`;
+// The host is embedded in the link the user pasted, so use it directly
+    const fetchUrl = `${new URL(raw).origin}/?${pasteId}`;
     const resp = await fetch(fetchUrl, {
       headers: { 'X-Requested-With': 'JSONHttpRequest' }
     });
@@ -1290,12 +1246,23 @@ function applyWordHighlights(content) {
   readerContent.innerHTML = html;
 }
 
+let lastPersist = 0;
+let pendingPersist = null;
+
 async function updateReadingProgress() {
   if (currentGuideId == null) return;
   const c = document.getElementById('readerContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
   const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
   setProgressUI(progress);
+
+  const now = Date.now();
+  if (now - lastPersist < 500) {
+    pendingPersist = progress;
+    return;
+  }
+  lastPersist = now;
+
   const guides = await bridge.readGuides();
   const guide = guides.find(g => g.id === currentGuideId);
   if (guide) {
@@ -1303,6 +1270,19 @@ async function updateReadingProgress() {
     await bridge.writeGuides(guides);
   }
 }
+
+setInterval(async () => {
+  if (pendingPersist == null || currentGuideId == null) return;
+  const progress = pendingPersist;
+  pendingPersist = null;
+  lastPersist = Date.now();
+  const guides = await bridge.readGuides();
+  const guide = guides.find(g => g.id === currentGuideId);
+  if (guide) {
+    guide.progress = progress;
+    await bridge.writeGuides(guides);
+  }
+}, 750);
 
 function setProgressUI(progress) {
   document.getElementById('readerProgressFill').style.width = progress + '%';
@@ -1463,7 +1443,26 @@ function reapplyContent() {
     if (guide) applyWordHighlights(guide.content);
   });
 }
+
 /* PrivateBin crypto */
+function bytesToBase64(u8) {
+  let s = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    s += String.fromCharCode(...u8.subarray(i, i + chunk));
+  }
+  return btoa(s);
+}
+
+function base64urlToBytes(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
 async function pbEncrypt(plaintext) {
   const key = await crypto.subtle.generateKey(
     { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']
@@ -1471,25 +1470,26 @@ async function pbEncrypt(plaintext) {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
   const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-  const rawKey = await crypto.subtle.exportKey('raw', key);
-  const keyB64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+  const rawKey = new Uint8Array(await crypto.subtle.exportKey('raw', key));
+  const keyB64 = bytesToBase64(rawKey)
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+
   const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(cipherBuf), iv.length);
-  const payloadB64 = btoa(String.fromCharCode(...combined));
+  const payloadB64 = bytesToBase64(combined);
   return { payloadB64, keyB64 };
 }
 
 async function pbDecrypt(payloadB64, keyB64) {
-  const rawKey = Uint8Array.from(
-    atob(keyB64.replace(/-/g, '+').replace(/_/g, '/')),
-    c => c.charCodeAt(0)
-  );
+  const rawKey = base64urlToBytes(keyB64);
   const key = await crypto.subtle.importKey(
     'raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']
   );
-  const combined = Uint8Array.from(atob(payloadB64), c => c.charCodeAt(0));
+  const bin = atob(payloadB64);
+  const combined = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) combined[i] = bin.charCodeAt(i);
   const iv = combined.slice(0, 12);
   const cipherBuf = combined.slice(12);
   const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBuf);
