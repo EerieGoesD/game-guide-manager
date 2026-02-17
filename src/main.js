@@ -54,6 +54,11 @@ let wordColors = {};
 // Backup meta (no files, no codes UI)
 let lastBackupMeta = null; // { createdAt, bytes, encrypted, guideCount }
 let lastBackupText = '';   // kept only in-memory to re-share if needed
+const PRIVATEBIN_HOSTS = [
+  'https://privatebin.net',
+  'https://bin.nixnet.services',
+  'https://paste.i2pd.xyz'
+];
 
 const app = document.getElementById('app');
 
@@ -115,16 +120,27 @@ app.innerHTML = `
           <label for="backupPassExport">Backup password (optional but recommended):</label>
           <input type="text" id="backupPassExport" placeholder="Choose a password you will remember" autocomplete="off">
 
-          <div class="button-group">
-            <button id="btnShareBackup" type="button">Share Backup</button>
+<div class="button-group">
+            <button id="btnGenerateLink" type="button">🔗 Generate Link</button>
+          </div>
+
+          <div id="generatedLinkSection" style="display:none; margin-top:12px;">
+            <label>Backup link(s) — share each one to your other device:</label>
+            <textarea id="generatedLinkBox" readonly class="export-textarea" style="min-height:80px;"></textarea>
+            <div class="button-group">
+              <button id="btnCopyLink" class="secondary" type="button">Copy All Links</button>
+            </div>
+            <p class="help-text">
+              🔒 Encrypted on your device before upload. The server never sees your content.
+              Links expire after 1 week. On your other device, paste each link separately and tap <strong>Merge</strong>.
+            </p>
           </div>
 
           <div class="selection-info">
             <strong>Guides:</strong> <span id="exportCount">0</span><br>
             <strong>Last backup:</strong> <span id="backupMeta">None</span>
           </div>
-        </div>
-
+          
         <div id="importPane" style="margin-top:16px; display:none;">
           <h2>Import Backup</h2>
           <p class="help-text">
@@ -132,17 +148,13 @@ app.innerHTML = `
             On this device, tap “Paste Backup” to load it.
           </p>
 
-          <label for="backupPassImport">Backup password (if you set one):</label>
-          <input type="text" id="backupPassImport" placeholder="Enter password (if any)" autocomplete="off">
+<label for="importLinkInput">Paste your backup link:</label>
+          <input type="text" id="importLinkInput" placeholder="https://privatebin.net/?abc123#..." autocomplete="off">
+          <p class="help-text">🔓 Decryption happens entirely on your device.</p>
 
           <div class="button-group">
-            <button id="btnPasteBackup" type="button">📋 Paste Backup</button>
+            <button id="btnImportFromLink" type="button">📥 Import from Link</button>
             <button class="secondary" id="btnClearImport" type="button">Clear</button>
-          </div>
-
-          <textarea id="backupPasteArea" class="export-textarea" style="display:none;" placeholder="Paste backup here..."></textarea>
-          <div class="button-group" id="backupManualButtons" style="display:none;">
-            <button id="btnValidateBackupText" type="button">Validate Backup</button>
           </div>
 
           <div id="importStatus"></div>
@@ -617,66 +629,123 @@ function showManualPaste(show) {
 }
 
 function clearImportUI() {
-  const backupPass = document.getElementById('backupPassImport');
-  if (backupPass) backupPass.value = '';
-
-  const ta = document.getElementById('backupPasteArea');
-  if (ta) ta.value = '';
+  const linkInput = document.getElementById('importLinkInput');
+  if (linkInput) linkInput.value = '';
 
   setImportStatus('');
   showImportActions(false);
-  showManualPaste(false);
   pendingImport = null;
   resetViewport();
 }
 
-async function shareBackup() {
+async function generateShareLink() {
   const guides = await bridge.readGuides();
-  const pass = (document.getElementById('backupPassExport')?.value || '').trim();
-
-  if (!pass) {
-    const ok = await themedConfirm({
-      title: 'No password set',
-      message: 'This backup will NOT be encrypted. Anyone who receives it can read it.\nContinue?',
-      okText: 'Continue',
-      cancelText: 'Cancel',
-      danger: true
-    });
-    if (!ok) return;
+  if (!guides.length) {
+    showToast('Nothing to export', 'You have no saved guides.');
+    return;
   }
 
-  const { text, encrypted } = await encodeGuidesBackupToString(guides, pass);
-  const bytes = new TextEncoder().encode(text).length;
-
-  lastBackupText = text;
-  lastBackupMeta = {
-    createdAt: new Date().toLocaleString(),
-    bytes,
-    encrypted,
-    guideCount: guides.length
-  };
-
-  await refreshExportMetaOnly();
-
-  const payload = {
-    title: 'Game Guide Manager Backup',
-    text
-  };
+  const btn = document.getElementById('btnGenerateLink');
+  btn.textContent = 'Checking size...';
+  btn.disabled = true;
 
   try {
-    if (Capacitor?.isNativePlatform?.()) {
-      await Share.share(payload);
-    } else if (navigator.share) {
-      await navigator.share(payload);
-    } else {
-      // Fallback: copy to clipboard
-      await navigator.clipboard.writeText(text);
-      showToast('Copied', 'Backup copied to clipboard');
-      return;
+    // Check total size first
+    const { text: fullText } = await encodeGuidesBackupToString(guides, '');
+    const totalBytes = new TextEncoder().encode(fullText).length;
+    const CHUNK_BYTE_LIMIT = 6_000_000; // 6 MB per link, safe under PrivateBin's 10 MB
+
+    // Split guides into chunks that each stay under the byte limit
+    const chunks = [];
+    let currentChunk = [];
+    let currentBytes = 0;
+
+    for (const guide of guides) {
+      const { text: singleText } = await encodeGuidesBackupToString([guide], '');
+      const guideBytes = new TextEncoder().encode(singleText).length;
+
+      if (currentBytes + guideBytes > CHUNK_BYTE_LIMIT && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = [guide];
+        currentBytes = guideBytes;
+      } else {
+        currentChunk.push(guide);
+        currentBytes += guideBytes;
+      }
     }
-    showToast('Shared', encrypted ? 'Encrypted backup shared' : 'Backup shared (not encrypted)');
+    if (currentChunk.length > 0) chunks.push(currentChunk);
+
+    if (chunks.length > 1) {
+      const ok = await themedConfirm({
+        title: `Library is large — ${chunks.length} links needed`,
+        message: `Your library is too large for one link. We'll generate ${chunks.length} links.\n\nOn import, paste each one and tap "Merge".`,
+        okText: 'Continue',
+        cancelText: 'Cancel'
+      });
+      if (!ok) {
+        btn.textContent = '🔗 Generate Link';
+        btn.disabled = false;
+        return;
+      }
+    }
+
+    const links = [];
+    for (let i = 0; i < chunks.length; i++) {
+      btn.textContent = `Uploading ${i + 1} / ${chunks.length}...`;
+
+      const { text } = await encodeGuidesBackupToString(chunks[i], '');
+      const { payloadB64, keyB64 } = await pbEncrypt(text);
+
+      const body = JSON.stringify({
+        v: 2,
+        ct: payloadB64,
+        adata: [[], 'plaintext', 0, 0],
+        meta: { expire: '1week' }
+      });
+
+      let result;
+      try {
+        const raw = await fetch(PRIVATEBIN_HOST, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'JSONHttpRequest'
+          },
+          body
+        });
+        result = await raw.json();
+      } catch (fetchErr) {
+        throw new Error(`Upload failed for batch ${i + 1}: ${String(fetchErr?.message || fetchErr)}`);
+      }
+
+      if (result.status !== 0) throw new Error(result.message || `Upload failed for batch ${i + 1}`);
+
+      links.push(`${PRIVATEBIN_HOST}/?${result.id}#${keyB64}`);
+    }
+
+    document.getElementById('generatedLinkBox').value = links.join('\n');
+    document.getElementById('generatedLinkSection').style.display = 'block';
+
+    try { await navigator.clipboard.writeText(links.join('\n')); } catch {}
+
+    lastBackupMeta = {
+      createdAt: new Date().toLocaleString(),
+      bytes: totalBytes,
+      encrypted: true,
+      guideCount: guides.length
+    };
+    await refreshExportMetaOnly();
+
+    const msg = links.length > 1
+      ? `${links.length} encrypted links generated and copied`
+      : 'Encrypted link generated and copied';
+    showToast('Done!', `🔒 ${msg} — expires in 1 week`);
+
   } catch (e) {
-    // User canceled share sheet -> ignore
+    showToast('Error', String(e?.message || e));
+  } finally {
+    btn.textContent = '🔗 Generate Link';
+    btn.disabled = false;
   }
 }
 
@@ -715,8 +784,8 @@ async function validateBackupFromTextarea() {
   await validateBackupText(text);
 }
 
-async function validateBackupText(text) {
-  const pass = (document.getElementById('backupPassImport')?.value || '').trim();
+async function validateBackupText(text, pass) {
+  if (pass === undefined) pass = (document.getElementById('backupPassImport')?.value || '').trim();
 
   try {
     const data = await decodeGuidesBackupFromString(text, pass);
@@ -801,6 +870,46 @@ async function importMergeKeepCurrent() {
   setImportStatus('');
   showManualPaste(false);
   await showScreen('mainScreen');
+}
+
+async function importFromLink() {
+  const raw = (document.getElementById('importLinkInput')?.value || '').trim();
+  if (!raw) {
+    setImportStatus(`<div class="error">❌ Paste a link first</div>`);
+    return;
+  }
+
+  let pasteId, keyB64;
+  try {
+    const u = new URL(raw);
+    pasteId = u.search.replace('?', '');
+    keyB64  = u.hash.replace('#', '');
+    if (!pasteId || !keyB64) throw new Error();
+  } catch {
+    setImportStatus(`<div class="error">❌ Not a valid backup link</div>`);
+    return;
+  }
+
+  setImportStatus(`<div class="help-text">⏳ Fetching encrypted backup...</div>`);
+  showImportActions(false);
+  pendingImport = null;
+
+  try {
+    const fetchUrl = `${PRIVATEBIN_HOST}/?${pasteId}`;
+    const resp = await fetch(fetchUrl, {
+      headers: { 'X-Requested-With': 'JSONHttpRequest' }
+    });
+    const result = await resp.json();
+    if (result.status !== 0) throw new Error(result.message || 'Fetch failed');
+
+    setImportStatus(`<div class="help-text">🔓 Decrypting on your device...</div>`);
+
+    const plaintext = await pbDecrypt(result.ct, keyB64);
+    await validateBackupText(plaintext);
+
+  } catch (e) {
+    setImportStatus(`<div class="error">❌ ${escapeHtml(String(e?.message || e))}</div>`);
+  }
 }
 
 /* Find */
@@ -1354,6 +1463,38 @@ function reapplyContent() {
     if (guide) applyWordHighlights(guide.content);
   });
 }
+/* PrivateBin crypto */
+async function pbEncrypt(plaintext) {
+  const key = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']
+  );
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(plaintext);
+  const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+  const rawKey = await crypto.subtle.exportKey('raw', key);
+  const keyB64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const combined = new Uint8Array(iv.length + cipherBuf.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(cipherBuf), iv.length);
+  const payloadB64 = btoa(String.fromCharCode(...combined));
+  return { payloadB64, keyB64 };
+}
+
+async function pbDecrypt(payloadB64, keyB64) {
+  const rawKey = Uint8Array.from(
+    atob(keyB64.replace(/-/g, '+').replace(/_/g, '/')),
+    c => c.charCodeAt(0)
+  );
+  const key = await crypto.subtle.importKey(
+    'raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']
+  );
+  const combined = Uint8Array.from(atob(payloadB64), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const cipherBuf = combined.slice(12);
+  const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBuf);
+  return new TextDecoder().decode(plainBuf);
+}
 
 /* Utilities */
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
@@ -1557,11 +1698,14 @@ document.addEventListener('keydown', (e) => {
 document.getElementById('tabExport').addEventListener('click', () => setTab('export'));
 document.getElementById('tabImport').addEventListener('click', () => setTab('import'));
 
-document.getElementById('btnShareBackup').addEventListener('click', shareBackup);
-document.getElementById('btnPasteBackup').addEventListener('click', pasteBackupFromClipboard);
-document.getElementById('btnValidateBackupText').addEventListener('click', validateBackupFromTextarea);
-document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
+document.getElementById('btnGenerateLink').addEventListener('click', generateShareLink);
+document.getElementById('btnImportFromLink').addEventListener('click', importFromLink);
+document.getElementById('btnCopyLink').addEventListener('click', () => {
+  const val = document.getElementById('generatedLinkBox')?.value;
+  if (val) navigator.clipboard.writeText(val).then(() => showToast('Copied', 'All links copied'));
+});
 
+document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
 document.getElementById('btnImportReplace').addEventListener('click', importReplaceAll);
 document.getElementById('btnImportMerge').addEventListener('click', importMergeKeepCurrent);
 
