@@ -695,17 +695,8 @@ async function generateShareLink() {
 
 let result = null;
       for (const host of PRIVATEBIN_HOSTS) {
-        
         try {
-          const raw = await fetch(host, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Requested-With': 'JSONHttpRequest'
-            },
-            body
-          });
-          const candidate = await raw.json();
+          const candidate = await xhrPost(host, body);
           if (candidate.status === 0) {
             result = { ...candidate, _host: host };
             break;
@@ -713,8 +704,8 @@ let result = null;
         } catch {}
       }
       if (!result) throw new Error(`Upload failed for batch ${i + 1}: all hosts unavailable`);
-links.push(`${result._host}/?${result.id}#${keyB64}`);
-}
+    
+    }
 
     document.getElementById('generatedLinkBox').value = links.join('\n');
     document.getElementById('generatedLinkSection').style.display = 'block';
@@ -850,12 +841,9 @@ async function importFromLink() {
   pendingImport = null;
 
   try {
-// The host is embedded in the link the user pasted, so use it directly
-    const fetchUrl = `${new URL(raw).origin}/?${pasteId}`;
-    const resp = await fetch(fetchUrl, {
-      headers: { 'X-Requested-With': 'JSONHttpRequest' }
-    });
-    const result = await resp.json();
+
+const fetchUrl = `${new URL(raw).origin}/?${pasteId}`;
+    const result = await xhrGet(fetchUrl);
     if (result.status !== 0) throw new Error(result.message || 'Fetch failed');
 
     setImportStatus(`<div class="help-text">🔓 Decrypting on your device...</div>`);
@@ -1441,6 +1429,40 @@ function reapplyContent() {
   bridge.readGuides().then(guides => {
     const guide = guides.find(g => g.id === currentGuideId);
     if (guide) applyWordHighlights(guide.content);
+  });
+}
+
+/* XHR helpers (bypass Capacitor's native HTTP interceptor) */
+function xhrPost(url, body) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('X-Requested-With', 'JSONHttpRequest');
+    xhr.timeout = 15000;
+    xhr.onload = () => {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch { reject(new Error('Invalid JSON response')); }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.ontimeout = () => reject(new Error('Request timed out'));
+    xhr.send(body);
+  });
+}
+
+function xhrGet(url) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.setRequestHeader('X-Requested-With', 'JSONHttpRequest');
+    xhr.timeout = 15000;
+    xhr.onload = () => {
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch { reject(new Error('Invalid JSON response')); }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.ontimeout = () => reject(new Error('Request timed out'));
+    xhr.send();
   });
 }
 
