@@ -385,7 +385,7 @@ const isIOS =
   /iPad|iPhone|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-fileInput.accept = isIOS ? '*/*' : 'application/pdf,text/plain,.pdf,.txt';
+fileInput.accept = 'application/pdf,text/plain,.pdf,.txt';
 
 document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
 
@@ -1392,10 +1392,10 @@ function base64ToText(b64) {
 
 async function pickFileNative() {
 const result = await FilePicker.pickFiles({
+  types: ['application/pdf', 'text/plain'],
   limit: 1,
   readData: true
 });
-
 
   const f = result?.files?.[0];
   if (!f) return;
