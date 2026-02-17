@@ -7,7 +7,8 @@ import { extractTextFromPdfArrayBuffer } from './pdfToText.js';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
 import { Share } from '@capacitor/share';
-import { FilePicker } from '@capgo/capacitor-file-picker';
+import { CapgoFilePicker as FilePicker } from '@capgo/capacitor-file-picker';
+import pako from 'pako';
 
 // Viewport fix
 function resetViewport() {
