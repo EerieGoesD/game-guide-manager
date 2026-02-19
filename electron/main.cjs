@@ -7,7 +7,7 @@ const axios = require('axios');
 const isDev = !app.isPackaged;
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.eerie.guidemanager');
+  app.setAppUserModelId('com.eerie.readervaultpro');
 }
 
 const ENABLE_TRAY = false;
@@ -168,7 +168,7 @@ function createTray() {
     { label: 'Quit', click: () => app.quit() }
   ]);
 
-  tray.setToolTip('Guide Manager');
+  tray.setToolTip('Reader Vault Pro');
   tray.setContextMenu(menu);
 
   tray.on('double-click', () => {

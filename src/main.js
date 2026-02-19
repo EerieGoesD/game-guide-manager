@@ -13,6 +13,11 @@ import { StatusBar } from '@capacitor/status-bar';
 })();
 
 const bridge = getBridge();
+const FREE_GUIDE_LIMIT = Infinity;
+
+async function ensureFreeLimitForTargetGuideCount() {
+  return true;
+}
 
 // State
 let loadedContent = '';
@@ -36,7 +41,7 @@ app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>🎮 Game Guide Manager</h1>
+      <h1>📖 Reader Vault Pro</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
@@ -145,7 +150,7 @@ app.innerHTML = `
           <button id="btnUrl">🌐 Load from URL</button>
         </div>
 
-        <input type="file" id="fileInput" accept=".txt,.text" style="display:none">
+        <input type="file" id="fileInput" style="display:none">
 
         <div id="textPaster" style="display:none; margin-top: 20px;">
           <label>Paste Guide Text:</label>

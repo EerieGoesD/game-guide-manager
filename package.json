@@ -37,8 +37,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.eerie.guidemanager",
-    "productName": "Guide Manager",
+    "appId": "com.eerie.readervaultpro",
+    "productName": "Reader Vault Pro",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -57,12 +57,12 @@
         "nsis"
       ]
     },
-    "mac": {
-      "icon": "build/icon.icns",
-      "target": [
-        "dmg",
-        "zip"
-      ]
+    "appx": {
+      "identityName": "20715EerieGoesD.ReaderVaultPro",
+      "publisher": "CN=A2A89A47-0B2B-4C32-B85C-9753888A9FFC",
+      "displayName": "Reader Vault Pro",
+      "publisherDisplayName": "EERIE",
+      "applicationId": "ReaderVaultPro"
     },
     "linux": {
       "icon": "build/icon.png",
