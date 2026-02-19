@@ -1,6 +1,6 @@
 {
   "name": "guide-manager-xplat",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "private": true,
   "author": "EERIE",
   "description": "Cross-platform Game Guide Manager (Electron + Capacitor) with local storage and URL loading",
@@ -52,10 +52,8 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": [
-        "portable",
-        "nsis"
-      ]
+      "target": ["appx"]
+
     },
     "appx": {
       "identityName": "20715EerieGoesD.ReaderVaultPro",
