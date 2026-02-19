@@ -7,7 +7,7 @@ const axios = require('axios');
 const isDev = !app.isPackaged;
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.eerie.guidemanager');
+  app.setAppUserModelId('com.eerie.readervaultfree');
 }
 
 const ENABLE_TRAY = false;
@@ -188,6 +188,19 @@ ipcMain.handle('ggm_readGuides', async () => {
 
 ipcMain.handle('ggm_writeGuides', async (_event, guides) => {
   await writeGuides(guides);
+  return true;
+});
+
+// Reader Vault Pro (Microsoft Store ProductId)
+const PRO_APP_STORE_ID = '9N27J261X0SN';
+
+ipcMain.handle('ggm_open_pro_store', async () => {
+  if (process.platform === 'win32') {
+    await shell.openExternal(`ms-windows-store://pdp/?productid=${PRO_APP_STORE_ID}`);
+  } else {
+    // Works on Linux/macOS to at least show the listing in a browser
+    await shell.openExternal(`https://apps.microsoft.com/detail/${PRO_APP_STORE_ID}`);
+  }
   return true;
 });
 

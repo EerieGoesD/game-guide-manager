@@ -41,8 +41,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.eerie.guidemanager",
-    "productName": "Reader Vault",
+    "appId": "com.eerie.readervaultfree",
+    "productName": "Reader Vault Free",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -56,25 +56,19 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": [
-        "portable",
-        "nsis"
-      ]
+      "target": ["appx"]
     },
-    "mac": {
-      "icon": "build/icon.icns",
-      "target": [
-        "dmg",
-        "zip"
-      ]
+    "appx": {
+      "identityName": "20715EerieGoesD.ReaderVaultFree",
+      "publisher": "CN=A2A89A47-0B2B-4C32-B85C-9753888A9FFC",
+      "displayName": "Reader Vault Free",
+      "publisherDisplayName": "EERIE",
+      "applicationId": "ReaderVaultFree"
     },
     "linux": {
       "icon": "build/icon.png",
-      "target": [
-        "AppImage",
-        "deb"
-      ],
-      "category": "Utility"
+      "category": "Utility",
+      "target": ["AppImage", "deb"]
     }
   },
   "overrides": {

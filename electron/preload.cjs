@@ -1,21 +1,17 @@
+// electron/preload.cjs
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('GuideBridge', {
   platform: 'electron',
 
-  fetchUrl: async (url) => {
-    return await ipcRenderer.invoke('ggm_fetch', url);
-  },
+  fetchUrl: (url) => ipcRenderer.invoke('ggm_fetch', url),
 
-  fetchUrlBrowser: async (url) => {
-    return await ipcRenderer.invoke('ggm_fetch_browser', url);
-  },
+  fetchUrlBrowser: (url) => ipcRenderer.invoke('ggm_fetch_browser', url),
 
-  readGuides: async () => {
-    return await ipcRenderer.invoke('ggm_readGuides');
-  },
+  readGuides: () => ipcRenderer.invoke('ggm_readGuides'),
 
-  writeGuides: async (guides) => {
-    return await ipcRenderer.invoke('ggm_writeGuides', guides);
-  }
+  writeGuides: (guides) => ipcRenderer.invoke('ggm_writeGuides', guides),
+
+  // Free app: open Microsoft Store listing for Reader Vault Pro (separate app)
+  openProStore: () => ipcRenderer.invoke('ggm_open_pro_store')
 });

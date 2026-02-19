@@ -3,7 +3,6 @@ import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 const GUIDES_FILE = 'guides.json';
-
 const InteractiveImport = registerPlugin('InteractiveImport');
 
 function looksLikeBotBlock(html) {
@@ -20,6 +19,7 @@ function looksLikeBotBlock(html) {
 }
 
 export function getBridge() {
+  // Electron preload bridge
   if (window.GuideBridge && typeof window.GuideBridge.fetchUrl === 'function') {
     return window.GuideBridge;
   }
@@ -50,9 +50,7 @@ function capacitorBridge() {
         }
       });
 
-      if (res.status >= 400) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (res.status >= 400) throw new Error(`HTTP ${res.status}`);
 
       const data = res.data;
       const text = typeof data === 'string' ? data : JSON.stringify(data);
@@ -67,9 +65,7 @@ function capacitorBridge() {
     async fetchUrlBrowser(url) {
       const out = await InteractiveImport.open({ url });
       const text = (out && out.text) ? String(out.text) : '';
-      if (!text.trim()) {
-        throw new Error('Import returned empty content.');
-      }
+      if (!text.trim()) throw new Error('Import returned empty content.');
       return text;
     },
 
