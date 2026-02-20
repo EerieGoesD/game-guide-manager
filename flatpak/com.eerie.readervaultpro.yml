@@ -1,50 +1,63 @@
-app-id: com.eerie.readervaultpro
+id: com.eerie.readervaultpro
 runtime: org.freedesktop.Platform
-runtime-version: '24.08'
+runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
+
 base: org.electronjs.Electron2.BaseApp
-base-version: '24.08'
+base-version: "24.08"
+
 sdk-extensions:
-  - org.freedesktop.Sdk.Extension.node20
+  - org.freedesktop.Sdk.Extension.node22
+
 command: reader-vault-pro
 separate-locales: false
 
 finish-args:
-  - --share=ipc
-  - --share=network
   - --socket=wayland
   - --socket=fallback-x11
+  - --share=ipc
   - --device=dri
-  - --filesystem=home
-
-build-options:
-  append-path: /usr/lib/sdk/node20/bin
-  env:
-    NPM_CONFIG_LOGLEVEL: info
-    npm_config_nodedir: /usr/lib/sdk/node20
+  - --socket=pulseaudio
+  - --share=network
 
 modules:
   - name: reader-vault-pro
     buildsystem: simple
+
     build-options:
+      append-path: /usr/lib/sdk/node22/bin
       env:
         XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
+        npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
+        npm_config_nodedir: /usr/lib/sdk/node22
+        NPM_CONFIG_LOGLEVEL: warn
+        npm_config_offline: "true"
+        npm_config_audit: "false"
+        npm_config_fund: "false"
+
     build-commands:
       - npm install --offline
       - npm run build
-      - npx electron-builder --linux dir --publish never
-      - cp -r dist/linux-unpacked /app/reader-vault-pro
+
+      - install -d /app/main
+      - cp -r dist /app/main/dist
+
+      - if [ -d electron ]; then cp -r electron /app/main/electron; fi
+      - if [ -d src ]; then cp -r src /app/main/src; fi
+      - if [ -f main.js ]; then install -Dm644 main.js /app/main/main.js; fi
+
+      - install -Dm644 package.json /app/main/package.json
+      - if [ -f package-lock.json ]; then install -Dm644 package-lock.json /app/main/package-lock.json; fi
+
       - install -Dm755 flatpak/reader-vault-pro.sh /app/bin/reader-vault-pro
-      - install -Dm644 assets/icon.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultpro.png
+      - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultpro.png
       - install -Dm644 flatpak/com.eerie.readervaultpro.desktop /app/share/applications/com.eerie.readervaultpro.desktop
       - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml
+
     sources:
-      - type: dir
-        path: ..
-        skip:
-          - flatpak
-          - node_modules
-          - android
-          - ios
-          - release
-      - flatpak/generated-sources.json
+      - type: git
+        url: https://github.com/EerieGoesD/game-guide-manager.git
+        commit: 5535a2290c216e81f20b0d1f69dd78c946f927d2
+
+      - type: file
+        path: generated-sources.json
