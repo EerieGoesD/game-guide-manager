@@ -21,6 +21,9 @@ finish-args:
   - --share=network
 
 modules:
+  # Build libvips inside the Flatpak (so sharp can link against it)
+  - shared-modules/libvips/libvips.json
+
   - name: reader-vault-pro
     buildsystem: simple
 
@@ -29,26 +32,19 @@ modules:
       env:
         XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
         npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
-        npm_config_sharp_libvips_binary_host: "http://127.0.0.1:18080/sharp-libvips"
         npm_config_nodedir: /usr/lib/sdk/node22
         NPM_CONFIG_LOGLEVEL: warn
         npm_config_offline: "true"
         npm_config_audit: "false"
         npm_config_fund: "false"
 
+        # Make sharp stop downloading libvips and compile against the libvips we built above
+        npm_config_build_from_source: "true"
+        SHARP_FORCE_GLOBAL_LIBVIPS: "1"
+
     build-commands:
       - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
-      
-
-      # serve libvips over local HTTP (sharp won't accept file://)
-
-      - mkdir -p /run/build/reader-vault-pro/flatpak-node/sharp-libvips/v8.14.5
-
-      - cp -f flatpak-node/sharp-libvips/libvips-8.14.5-linux-x64.tar.br /run/build/reader-vault-pro/flatpak-node/sharp-libvips/v8.14.5/
-
-      - (cd /run/build/reader-vault-pro/flatpak-node && python3 -m http.server 18080 --bind 127.0.0.1 >/tmp/sharp-http.log 2>&1 & echo $! > /tmp/sharp-http.pid)
       - npm install --offline
-      - kill "$(cat /tmp/sharp-http.pid)" || true
       - npm run build
 
       - install -d /app/main
@@ -67,13 +63,7 @@ modules:
       - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml
 
     sources:
-      - type: file
-        url: https://github.com/lovell/sharp-libvips/releases/download/v8.14.5/libvips-8.14.5-linux-x64.tar.br
-        sha256: 11959c03864960f812d861bf7291020540a49fafd2c746b7a3228d9f2bd2200d
-        dest: flatpak-node/sharp-libvips
-        dest-filename: libvips-8.14.5-linux-x64.tar.br
-
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: e0c35c942695baefa5884d1fc7970132325cda6a
+        commit: 8cf4cc14a8f94313902fcb82de54a029465bd028
       - generated-sources.json
