@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.eerie.readervaultpro</id>
+  <name>Reader Vault Pro</name>
+  <summary>Save and read books, guides, and long-form text offline</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <developer id="com.eerie">
+    <name>EERIE</name>
+  </developer>
+
+  <description>
+    <p>
+      Reader Vault Pro lets you save books, game guides, articles, and any
+      long-form text for offline reading with progress tracking, word
+      highlighting, and encrypted cross-device sync.
+    </p>
+    <ul>
+      <li>Load text from a file (PDF or TXT), paste directly, or fetch from a URL</li>
+      <li>Trim and edit content before saving</li>
+      <li>Track reading progress automatically</li>
+      <li>Highlight words with custom colors</li>
+      <li>Export and import an encrypted backup link to sync between devices</li>
+      <li>Dark, light, and high-contrast themes</li>
+      <li>Fullscreen reading mode</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.eerie.readervaultpro.desktop</launchable>
+
+  <url type="homepage">https://linktr.ee/eeriegoesd</url>
+  <url type="donation">https://buymeacoffee.com/eeriegoesd</url>
+
+  <screenshots>
+    <!-- Add at least one screenshot before submitting to Flathub -->
+  </screenshots>
+
+  <releases>
+    <release version="1.1.0" date="2025-02-20">
+      <description>
+        <p>Initial Flathub release.</p>
+      </description>
+    </release>
+  </releases>
+
+  <content_rating type="oars-1.1" />
+</component>
