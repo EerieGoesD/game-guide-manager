@@ -36,6 +36,7 @@ modules:
         npm_config_fund: "false"
 
     build-commands:
+      - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
       - npm install --offline
       - npm run build
 
@@ -57,7 +58,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: 0d5d1a9ba822254db677a4b293fdf8cd5bbfe211
+        commit: c41c480b92941974b7ed8e6b2a53e45b7134ebd8
 
       - type: file
-      - generated-sources.json
+      - type: file
+        path: generated-sources.json
