@@ -2,6 +2,7 @@
   "name": "libvips",
   "buildsystem": "meson",
 	"config-opts": [
+	  "-Dmodules=false",
 	  "-Dmagick=disabled",
 	  "-Dopenexr=disabled",
 	  "-Dorc=enabled",
@@ -9,7 +10,6 @@
 	  "-Dpoppler=disabled",
 	  "-Drsvg=disabled",
 	  "-Dspng=disabled",
-	  "-Djxl=disabled",
 	  "-Dtiff=enabled",
 	  "-Dwebp=enabled",
 	  "-Dzlib=enabled",
