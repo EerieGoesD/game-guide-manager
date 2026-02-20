@@ -39,7 +39,6 @@ modules:
     build-commands:
       - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
       - mkdir -p /run/build/reader-vault-pro/flatpak-node/sharp-libvips
-      - cp -v flatpak-node/sharp-libvips/libvips-8.14.5-linux-x64.tar.br /run/build/reader-vault-pro/flatpak-node/sharp-libvips/
       - npm install --offline
       - npm run build
 
