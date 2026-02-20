@@ -12,9 +12,9 @@
     "-Dtiff=enabled",
     "-Dwebp=enabled",
     "-Dzlib=enabled",
-    "-Dexamples=disabled",
-    "-Dintrospection=disabled",
-    "-Ddeprecated=enabled"
+    "-Dexamples=false",
+    "-Dintrospection=false",
+    "-Ddeprecated=false"
   ],
   "cleanup": [
     "/bin",
