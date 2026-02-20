@@ -58,5 +58,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: d0d141403dd7406de76bf4b1510cd2fe786589fd
+        commit: 3687436ad2b51c2e1f95675328e09f1a58b149c9
       - generated-sources.json
