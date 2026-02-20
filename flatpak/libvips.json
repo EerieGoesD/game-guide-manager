@@ -23,11 +23,6 @@
     "-Ddeprecated=false"
   ],
 	"cleanup": [
-	  "/bin/vips",
-	  "/bin/vipsedit",
-	  "/bin/vipsheader",
-	  "/bin/vipsprofile",
-	  "/bin/vipsthumbnail",
 	  "/share/doc",
 	  "/share/man",
 	  "/share/gtk-doc"
