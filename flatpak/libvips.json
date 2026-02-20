@@ -1,21 +1,22 @@
 {
   "name": "libvips",
   "buildsystem": "meson",
-  "config-opts": [
-    "-Dmagick=disabled",
-    "-Dopenexr=disabled",
-    "-Dorc=enabled",
-    "-Dpdfium=disabled",
-    "-Dpoppler=disabled",
-    "-Drsvg=disabled",
-    "-Dspng=disabled",
-    "-Dtiff=enabled",
-    "-Dwebp=enabled",
-    "-Dzlib=enabled",
-    "-Dexamples=false",
-    "-Dintrospection=false",
-    "-Ddeprecated=false"
-  ],
+	"config-opts": [
+	  "-Dmagick=disabled",
+	  "-Dopenexr=disabled",
+	  "-Dorc=enabled",
+	  "-Dpdfium=disabled",
+	  "-Dpoppler=disabled",
+	  "-Drsvg=disabled",
+	  "-Dspng=disabled",
+	  "-Djxl=disabled",
+	  "-Dtiff=enabled",
+	  "-Dwebp=enabled",
+	  "-Dzlib=enabled",
+	  "-Dexamples=false",
+	  "-Dintrospection=false",
+	  "-Ddeprecated=false"
+	],
   "cleanup": [
     "/bin",
     "/share/doc",
