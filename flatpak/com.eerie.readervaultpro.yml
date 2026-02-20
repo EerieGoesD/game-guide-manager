@@ -22,7 +22,7 @@ finish-args:
 
 modules:
   # 1) Build and install libvips into /app (no JXL to avoid SDK mismatch)
-  - flatpak/libvips.json
+  - libvips.json
 
   # 2) Build your app; sharp builds from source and links against global /app libvips
   - name: reader-vault-pro
