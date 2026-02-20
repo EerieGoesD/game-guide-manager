@@ -64,6 +64,7 @@ modules:
       - if [ -f package-lock.json ]; then install -Dm644 package-lock.json /app/main/package-lock.json; fi
 
       - install -Dm755 flatpak/reader-vault-pro.sh /app/bin/reader-vault-pro
+        - test -x /app/bin/reader-vault-pro
       - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultpro.png
       - install -Dm644 flatpak/com.eerie.readervaultpro.desktop /app/share/applications/com.eerie.readervaultpro.desktop
       - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml

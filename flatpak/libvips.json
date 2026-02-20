@@ -22,12 +22,16 @@
     "-Dintrospection=false",
     "-Ddeprecated=false"
   ],
-  "cleanup": [
-    "/bin",
-    "/share/doc",
-    "/share/man",
-    "/share/gtk-doc"
-  ],
+	"cleanup": [
+	  "/bin/vips",
+	  "/bin/vipsedit",
+	  "/bin/vipsheader",
+	  "/bin/vipsprofile",
+	  "/bin/vipsthumbnail",
+	  "/share/doc",
+	  "/share/man",
+	  "/share/gtk-doc"
+	],
   "sources": [
     {
       "type": "archive",
