@@ -58,3 +58,10 @@ android/.cxx/
 
 # Xcode extras
 *.xcuserstate
+
+# --- Flatpak build output ---
+flatpak/.flatpak-builder/
+flatpak/build-dir/
+flatpak/repo/
+*.flatpak
+*.ostree
