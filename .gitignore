@@ -65,3 +65,5 @@ flatpak/build-dir/
 flatpak/repo/
 *.flatpak
 *.ostree
+
+.flatpak-builder/
