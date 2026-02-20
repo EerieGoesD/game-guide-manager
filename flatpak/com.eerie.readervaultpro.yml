@@ -29,7 +29,7 @@ modules:
       env:
         XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
         npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
-      npm_config_sharp_libvips_binary_host: "file:///run/build/reader-vault-pro/flatpak-node/sharp-libvips"
+        npm_config_sharp_libvips_binary_host: "file:///run/build/reader-vault-pro/flatpak-node/sharp-libvips"
         npm_config_nodedir: /usr/lib/sdk/node22
         NPM_CONFIG_LOGLEVEL: warn
         npm_config_offline: "true"
@@ -38,6 +38,8 @@ modules:
 
     build-commands:
       - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
+      - mkdir -p /run/build/reader-vault-pro/flatpak-node/sharp-libvips
+      - cp -v flatpak-node/sharp-libvips/libvips-8.14.5-linux-x64.tar.br /run/build/reader-vault-pro/flatpak-node/sharp-libvips/
       - npm install --offline
       - npm run build
 
@@ -57,12 +59,13 @@ modules:
       - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml
 
     sources:
+      - type: file
+        url: https://github.com/lovell/sharp-libvips/releases/download/v8.14.5/libvips-8.14.5-linux-x64.tar.br
+        sha256: 11959c03864960f812d861bf7291020540a49fafd2c746b7a3228d9f2bd2200d
+        dest: flatpak-node/sharp-libvips
+        dest-filename: libvips-8.14.5-linux-x64.tar.br
+
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: 2a5c61ad999a23d246e38b132016d1f258242a9d
+        commit: e0c35c942695baefa5884d1fc7970132325cda6a
       - generated-sources.json
-  - type: file
-    url: https://github.com/lovell/sharp-libvips/releases/download/v8.14.5/libvips-8.14.5-linux-x64.tar.br
-    sha256: 11959c03864960f812d861bf7291020540a49fafd2c746b7a3228d9f2bd2200d
-    dest: flatpak-node/sharp-libvips
-    dest-filename: libvips-8.14.5-linux-x64.tar.br
