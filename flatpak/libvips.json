@@ -2,9 +2,6 @@
   "name": "libvips",
   "buildsystem": "meson",
   "config-opts": [
-    "-Ddeprecated=false",
-    "-Dexamples=false",
-    "-Dintrospection=false",
     "-Dmagick=false",
     "-Dopenexr=disabled",
     "-Dorc=enabled",
@@ -14,7 +11,10 @@
     "-Dspng=disabled",
     "-Dtiff=enabled",
     "-Dwebp=enabled",
-    "-Dzlib=enabled"
+    "-Dzlib=enabled",
+    "-Dexamples=disabled",
+    "-Dintrospection=disabled",
+    "-Ddeprecated=enabled"
   ],
   "cleanup": [
     "/bin",
