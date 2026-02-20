@@ -29,6 +29,7 @@ modules:
       env:
         XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
         npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
+      npm_config_sharp_libvips_binary_host: "file:///run/build/reader-vault-pro/flatpak-node/sharp-libvips"
         npm_config_nodedir: /usr/lib/sdk/node22
         NPM_CONFIG_LOGLEVEL: warn
         npm_config_offline: "true"
@@ -58,5 +59,10 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: fe095d34fd655911e6cc4373280bbe2790b857e8
+        commit: 2a5c61ad999a23d246e38b132016d1f258242a9d
       - generated-sources.json
+  - type: file
+    url: https://github.com/lovell/sharp-libvips/releases/download/v8.14.5/libvips-8.14.5-linux-x64.tar.br
+    sha256: 11959c03864960f812d861bf7291020540a49fafd2c746b7a3228d9f2bd2200d
+    dest: flatpak-node/sharp-libvips
+    dest-filename: libvips-8.14.5-linux-x64.tar.br
