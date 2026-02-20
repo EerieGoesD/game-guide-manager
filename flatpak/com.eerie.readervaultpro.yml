@@ -21,8 +21,7 @@ finish-args:
   - --share=network
 
 modules:
-  # Build libvips inside the Flatpak (so sharp can link against it)
-  - shared-modules/libvips/libvips.json
+  - libvips.json
 
   - name: reader-vault-pro
     buildsystem: simple
@@ -38,7 +37,7 @@ modules:
         npm_config_audit: "false"
         npm_config_fund: "false"
 
-        # Make sharp stop downloading libvips and compile against the libvips we built above
+        # Force sharp to compile and use the libvips we build in this Flatpak
         npm_config_build_from_source: "true"
         SHARP_FORCE_GLOBAL_LIBVIPS: "1"
 
@@ -65,5 +64,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: 8cf4cc14a8f94313902fcb82de54a029465bd028
+        commit: 30f2d9deda4351c8dd3c097c72afb36c7c897e36
       - generated-sources.json

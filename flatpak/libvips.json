@@ -1,0 +1,32 @@
+{
+  "name": "libvips",
+  "buildsystem": "meson",
+  "config-opts": [
+    "-Ddeprecated=false",
+    "-Dexamples=false",
+    "-Dintrospection=false",
+    "-Dmagick=false",
+    "-Dopenexr=disabled",
+    "-Dorc=enabled",
+    "-Dpdfium=disabled",
+    "-Dpoppler=disabled",
+    "-Drsvg=disabled",
+    "-Dspng=disabled",
+    "-Dtiff=enabled",
+    "-Dwebp=enabled",
+    "-Dzlib=enabled"
+  ],
+  "cleanup": [
+    "/bin",
+    "/share/doc",
+    "/share/man",
+    "/share/gtk-doc"
+  ],
+  "sources": [
+    {
+      "type": "archive",
+      "url": "https://github.com/libvips/libvips/releases/download/v8.14.5/vips-8.14.5.tar.xz",
+      "sha256": "90374e9f6fbd5657b5faf306cacda20658d6144d385316b59b865bc1a487b68d"
+    }
+  ]
+}
