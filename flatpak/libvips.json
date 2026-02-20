@@ -2,7 +2,7 @@
   "name": "libvips",
   "buildsystem": "meson",
   "config-opts": [
-    "-Dmagick=false",
+    "-Dmagick=disabled",
     "-Dopenexr=disabled",
     "-Dorc=enabled",
     "-Dpdfium=disabled",
