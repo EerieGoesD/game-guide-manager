@@ -15,6 +15,7 @@ finish-args:
   - --share=network
   - --filesystem=xdg-documents
   - --filesystem=xdg-download
+  - --filesystem=/run/user/1000
 modules:
   # Build libvips into /app
   - libvips.json
@@ -36,7 +37,6 @@ modules:
   - name: reader-vault-pro
     buildsystem: simple
     cleanup:
-      - /main/node_modules/electron/dist
       - /main/node_modules/.cache
       - /main/node_modules/app-builder-bin
       - /main/node_modules/app-builder-lib
@@ -90,5 +90,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: 219333788c7843985de02c756dab166822d937ca
+        commit: dd2cdfd898df833f0b8af722a28382273afdfe25
       - generated-sources.json
