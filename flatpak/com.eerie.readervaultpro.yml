@@ -2,16 +2,12 @@ id: com.eerie.readervaultpro
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
-
 base: org.electronjs.Electron2.BaseApp
 base-version: "24.08"
-
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node22
-
 command: reader-vault-pro
 separate-locales: false
-
 finish-args:
   - --socket=wayland
   - --socket=fallback-x11
@@ -21,79 +17,80 @@ finish-args:
   - --share=network
   - --filesystem=xdg-documents
   - --filesystem=xdg-download
-
 modules:
   # Build libvips into /app
   - libvips.json
 
+  # Install Electron binary into /app/extra
+  - name: electron
+    buildsystem: simple
+    build-commands:
+          - mkdir -p /app/lib/electron
+          - cp -r ./* /app/lib/electron/
+          - chmod +x /app/lib/electron/electron
+    sources:
+      - type: archive
+        url: https://github.com/electron/electron/releases/download/v40.4.1/electron-v40.4.1-linux-x64.zip
+        sha256: 254202d10a218d186d05bdc9cb15d509cbec6a10cfec6fa5db82945d849a2be3
+        dest: .
+
   # Build app (sharp must compile against /app libvips)
   - name: reader-vault-pro
     buildsystem: simple
-
+    cleanup:
+      - /main/node_modules/electron/dist
+      - /main/node_modules/.cache
+      - /main/node_modules/app-builder-bin
+      - /main/node_modules/app-builder-lib
+      - /main/node_modules/7zip-bin
+      - /main/node_modules/typescript
+      - /main/node_modules/prettier
+      - /main/node_modules/@esbuild
+      - /main/node_modules/@rollup
+      - /main/node_modules/@trapezedev
+      - /main/node_modules/vite
+      - /main/node_modules/rimraf
+      - /main/node_modules/electron-builder
     build-options:
       append-path: /usr/lib/sdk/node22/bin
       env:
         XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
         npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
-
-        # Make sure sharp can "see" libvips installed into /app
         PKG_CONFIG_PATH: /app/lib64/pkgconfig:/app/lib/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
         LD_LIBRARY_PATH: /app/lib64:/app/lib
-
-        # Ensure vips tools are visible if anything probes them
-
-        # node-gyp headers location
         npm_config_nodedir: /usr/lib/sdk/node22
-
-        # Force building native addons from source
         npm_config_build_from_source: "true"
-
-        # Reduce npm noise
         npm_config_loglevel: "warn"
         npm_config_progress: "false"
         npm_config_audit: "false"
         npm_config_fund: "false"
         npm_config_update_notifier: "false"
-
-        # IMPORTANT:
-        # Do NOT set SHARP_IGNORE_GLOBAL_LIBVIPS at all.
-        # In sharp 0.32.x Boolean("0") is true, which *forces* download.
-
     build-commands:
       - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
-
-      # Sanity check: sharp uses pkg-config --modversion vips-cpp
       - pkg-config --modversion vips-cpp
       - pkg-config --cflags --libs vips-cpp
-
-      # Install deps. If generated-sources.json is correct, this works offline.
       - |
         if [ -f package-lock.json ]; then
           npm ci --offline --foreground-scripts --loglevel=warn
         else
           npm install --offline --foreground-scripts --loglevel=warn
         fi
-
       - npm run build
-
       - install -d /app/main
       - cp -r dist /app/main/dist
-
+      - cp -r node_modules /app/main/node_modules
       - if [ -d electron ]; then cp -r electron /app/main/electron; fi
       - if [ -d src ]; then cp -r src /app/main/src; fi
       - if [ -f main.js ]; then install -Dm644 main.js /app/main/main.js; fi
-
       - install -Dm644 package.json /app/main/package.json
       - if [ -f package-lock.json ]; then install -Dm644 package-lock.json /app/main/package-lock.json; fi
-
       - install -Dm755 flatpak/reader-vault-pro.sh /app/bin/reader-vault-pro
       - test -x /app/bin/reader-vault-pro
       - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultpro.png
       - install -Dm644 flatpak/com.eerie.readervaultpro.desktop /app/share/applications/com.eerie.readervaultpro.desktop
       - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml
-
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: d320e31b3ae9d954451a8e9727e3576752a2fb37
+        commit: 658d2c6336e3476ace2c80c1e827d0c79ecf3d4a
       - generated-sources.json
