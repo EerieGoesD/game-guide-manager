@@ -77,6 +77,8 @@ modules:
       - npm run build
 
       - install -d /app/main
+      - cp -r node_modules/electron/dist/. /app/bin/
+      - chmod +x /app/bin/electron
       - cp -r dist /app/main/dist
 
       - if [ -d electron ]; then cp -r electron /app/main/electron; fi
