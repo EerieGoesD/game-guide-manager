@@ -16,6 +16,7 @@ finish-args:
   - --filesystem=xdg-documents
   - --filesystem=xdg-download
   - --filesystem=/run/user/1000
+  - --filesystem=/run/user/1000
 modules:
   # Build libvips into /app
   - libvips.json
@@ -90,5 +91,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: dd2cdfd898df833f0b8af722a28382273afdfe25
+        commit: f0d0a988e02bcaf8511f557a55aac2f8e0d89f2c
       - generated-sources.json
