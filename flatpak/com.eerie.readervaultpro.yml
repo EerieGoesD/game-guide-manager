@@ -25,9 +25,9 @@ modules:
   - name: electron
     buildsystem: simple
     build-commands:
-          - mkdir -p /app/lib/electron
-          - cp -r ./* /app/lib/electron/
-          - chmod +x /app/lib/electron/electron
+          - mkdir -p /app/extra
+          - cp -r ./* /app/extra/
+          - chmod +x /app/extra/electron
     sources:
       - type: archive
         url: https://github.com/electron/electron/releases/download/v40.4.1/electron-v40.4.1-linux-x64.zip
@@ -92,5 +92,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: 658d2c6336e3476ace2c80c1e827d0c79ecf3d4a
+        commit: 2b03ff886d9ee40510b421809632fcf44e703044
       - generated-sources.json
