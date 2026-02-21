@@ -1,47 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>com.eerie.readervaultpro</id>
+
   <name>Reader Vault Pro</name>
-  <summary>Save and read books, guides, and long-form text offline</summary>
-  <metadata_license>CC0-1.0</metadata_license>
-  <project_license>LicenseRef-proprietary</project_license>
-  <developer id="com.eerie">
-    <name>EERIE</name>
-  </developer>
+  <summary>Load, save, and track reading progress for guides and documents</summary>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
 
   <description>
     <p>
-      Reader Vault Pro lets you save books, game guides, articles, and any
-      long-form text for offline reading with progress tracking, word
-      highlighting, and encrypted cross-device sync.
+      Reader Vault Pro is a document and guide reader that lets you load text and PDF files
+      from a local file, a URL, or directly pasted text. Save your documents to a personal
+      library in the Saved Guides section and track your reading progress across sessions.
+      Import and export your saved guides to keep your library portable.
     </p>
-    <ul>
-      <li>Load text from a file (PDF or TXT), paste directly, or fetch from a URL</li>
-      <li>Trim and edit content before saving</li>
-      <li>Track reading progress automatically</li>
-      <li>Highlight words with custom colors</li>
-      <li>Export and import an encrypted backup link to sync between devices</li>
-      <li>Dark, light, and high-contrast themes</li>
-      <li>Fullscreen reading mode</li>
-    </ul>
   </description>
 
   <launchable type="desktop-id">com.eerie.readervaultpro.desktop</launchable>
 
-  <url type="homepage">https://linktr.ee/eeriegoesd</url>
-  <url type="donation">https://buymeacoffee.com/eeriegoesd</url>
+  <url type="homepage">https://github.com/EerieGoesD/game-guide-manager</url>
+  <url type="bugtracker">https://github.com/EerieGoesD/game-guide-manager/issues</url>
 
   <screenshots>
-    <!-- Add at least one screenshot before submitting to Flathub -->
+    <screenshot type="default">
+      <caption>Main reading view</caption>
+      <image>https://raw.githubusercontent.com/EerieGoesD/game-guide-manager/pro/assets/icon-512.png</image>
+    </screenshot>
   </screenshots>
 
+  <content_rating type="oars-1.1" />
+
   <releases>
-    <release version="1.1.0" date="2025-02-20">
+    <release version="1.1.0" date="2025-01-01">
       <description>
         <p>Initial Flathub release.</p>
       </description>
     </release>
   </releases>
 
-  <content_rating type="oars-1.1" />
+  <developer id="com.eerie">
+    <name>Eerie</name>
+  </developer>
+
+  <categories>
+    <category>Utility</category>
+    <category>Office</category>
+  </categories>
+
+  <keywords>
+    <keyword>reader</keyword>
+    <keyword>pdf</keyword>
+    <keyword>guides</keyword>
+    <keyword>documents</keyword>
+  </keywords>
 </component>

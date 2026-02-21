@@ -19,12 +19,14 @@ finish-args:
   - --device=dri
   - --socket=pulseaudio
   - --share=network
+  - --filesystem=xdg-documents
+  - --filesystem=xdg-download
 
 modules:
-  # 1) Build and install libvips into /app (no JXL to avoid SDK mismatch)
+  # Build libvips into /app
   - libvips.json
 
-  # 2) Build your app; sharp builds from source and links against global /app libvips
+  # Build app (sharp must compile against /app libvips)
   - name: reader-vault-pro
     buildsystem: simple
 
@@ -34,22 +36,43 @@ modules:
         XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
         npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
 
-        # force native addons (sharp) to compile from source (no prebuilt downloads)
-        npm_config_build_from_source: "true"
+        # Make sure sharp can "see" libvips installed into /app
+        PKG_CONFIG_PATH: /app/lib64/pkgconfig:/app/lib/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
+        LD_LIBRARY_PATH: /app/lib64:/app/lib
 
-        # node headers location for node-gyp
+        # Ensure vips tools are visible if anything probes them
+
+        # node-gyp headers location
         npm_config_nodedir: /usr/lib/sdk/node22
 
-        NPM_CONFIG_LOGLEVEL: warn
-        npm_config_offline: "true"
+        # Force building native addons from source
+        npm_config_build_from_source: "true"
+
+        # Reduce npm noise
+        npm_config_loglevel: "warn"
+        npm_config_progress: "false"
         npm_config_audit: "false"
         npm_config_fund: "false"
+        npm_config_update_notifier: "false"
+
+        # IMPORTANT:
+        # Do NOT set SHARP_IGNORE_GLOBAL_LIBVIPS at all.
+        # In sharp 0.32.x Boolean("0") is true, which *forces* download.
 
     build-commands:
       - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
 
-      # IMPORTANT: no localhost server hack; it cannot persist between build-commands
-      - npm install --offline
+      # Sanity check: sharp uses pkg-config --modversion vips-cpp
+      - pkg-config --modversion vips-cpp
+      - pkg-config --cflags --libs vips-cpp
+
+      # Install deps. If generated-sources.json is correct, this works offline.
+      - |
+        if [ -f package-lock.json ]; then
+          npm ci --offline --foreground-scripts --loglevel=warn
+        else
+          npm install --offline --foreground-scripts --loglevel=warn
+        fi
 
       - npm run build
 
@@ -72,6 +95,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        branch: pro
-
+        commit: f0c38f253c2e232b046d427b26ca7213c744d57c
       - generated-sources.json
