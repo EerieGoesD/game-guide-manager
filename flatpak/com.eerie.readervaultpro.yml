@@ -2,8 +2,6 @@ id: com.eerie.readervaultpro
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
-base: org.electronjs.Electron2.BaseApp
-base-version: "24.08"
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node22
 command: reader-vault-pro
@@ -92,5 +90,5 @@ modules:
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
-        commit: 2b03ff886d9ee40510b421809632fcf44e703044
+        commit: 219333788c7843985de02c756dab166822d937ca
       - generated-sources.json
