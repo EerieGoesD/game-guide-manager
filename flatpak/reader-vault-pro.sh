@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-exec /app/lib/electron/electron /app/main \
+exec /app/main/node_modules/electron/dist/electron /app/main \
   --no-sandbox \
   --enable-features=UseOzonePlatform \
   --ozone-platform=wayland \
