@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
-exec zypak-wrapper /app/extra/electron /app/main \
+exec /app/extra/electron /app/main \
+  --no-sandbox \
   --enable-features=UseOzonePlatform \
   --ozone-platform=wayland \
   "$@"
