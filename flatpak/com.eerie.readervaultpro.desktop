@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Reader Vault Pro
+Name=Reader Vault Free
 Comment=Save and read books, guides, and long-form text offline
 Exec=reader-vault-pro
-Icon=com.eerie.readervaultpro
+Icon=com.eerie.readervaultfree
 Terminal=false
 Type=Application
 Categories=Utility;

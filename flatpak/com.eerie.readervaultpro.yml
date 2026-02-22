@@ -1,4 +1,4 @@
-id: com.eerie.readervaultpro
+id: com.eerie.readervaultfree
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
@@ -84,10 +84,10 @@ modules:
       - install -Dm644 package.json /app/main/package.json
       - if [ -f package-lock.json ]; then install -Dm644 package-lock.json /app/main/package-lock.json; fi
       - install -Dm755 flatpak/reader-vault-pro.sh /app/bin/reader-vault-pro
-      - test -x /app/bin/reader-vault-pro
-      - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultpro.png
-      - install -Dm644 flatpak/com.eerie.readervaultpro.desktop /app/share/applications/com.eerie.readervaultpro.desktop
-      - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml
+      - test -x /app/bin/reader-vault-free
+      - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultfree.png
+      - install -Dm644 flatpak/com.eerie.readervaultfree.desktop /app/share/applications/com.eerie.readervaultfree.desktop
+      - install -Dm644 flatpak/com.eerie.readervaultfree.metainfo.xml /app/share/metainfo/com.eerie.readervaultfree.metainfo.xml
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git

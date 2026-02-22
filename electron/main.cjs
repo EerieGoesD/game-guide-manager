@@ -191,7 +191,7 @@ ipcMain.handle('ggm_writeGuides', async (_event, guides) => {
   return true;
 });
 
-// Reader Vault Pro (Microsoft Store ProductId)
+// Reader Vault Free (Microsoft Store ProductId)
 const PRO_APP_STORE_ID = '9N27J261X0SN';
 
 ipcMain.handle('ggm_open_pro_store', async () => {

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>com.eerie.readervaultpro</id>
+  <id>com.eerie.readervaultfree</id>
 
-  <name>Reader Vault Pro</name>
+  <name>Reader Vault Free</name>
   <summary>Load, save, and track reading progress for guides and documents</summary>
 
   <metadata_license>MIT</metadata_license>
@@ -10,14 +10,14 @@
 
   <description>
     <p>
-      Reader Vault Pro is a document and guide reader that lets you load text and PDF files
+      Reader Vault Free is a document and guide reader that lets you load text and PDF files
       from a local file, a URL, or directly pasted text. Save your documents to a personal
       library in the Saved Guides section and track your reading progress across sessions.
       Import and export your saved guides to keep your library portable.
     </p>
   </description>
 
-  <launchable type="desktop-id">com.eerie.readervaultpro.desktop</launchable>
+  <launchable type="desktop-id">com.eerie.readervaultfree.desktop</launchable>
 
   <url type="homepage">https://github.com/EerieGoesD/game-guide-manager</url>
   <url type="bugtracker">https://github.com/EerieGoesD/game-guide-manager/issues</url>

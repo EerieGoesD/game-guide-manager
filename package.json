@@ -1,12 +1,12 @@
 {
-  "name": "guide-manager-xplat-pro",
-  "version": "1.1.0",
+  "name": "guide-manager-xplat-free",
+  "version": "1.2.0",
   "private": true,
   "author": {
     "name": "EERIE",
     "email": "eeriegoesd@gmail.com"
   },
-  "description": "Cross-platform Text Reader Manager Pro (Electron + Capacitor) with local storage and URL loading",  "main": "electron/main.cjs",
+  "description": "Cross-platform Text Reader Manager Free (Electron + Capacitor) with local storage and URL loading",  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -43,8 +43,8 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.eerie.readervaultpro",
-    "productName": "Reader Vault Pro",
+    "appId": "com.eerie.readervaultfree",
+    "productName": "Reader Vault Free",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -61,11 +61,11 @@
       "target": ["appx"]
     },
     "appx": {
-      "identityName": "20715EerieGoesD.ReaderVaultPro",
+      "identityName": "20715EerieGoesD.ReaderVaultFree",
       "publisher": "CN=A2A89A47-0B2B-4C32-B85C-9753888A9FFC",
-      "displayName": "Reader Vault Pro",
+      "displayName": "Reader Vault Free",
       "publisherDisplayName": "EERIE",
-      "applicationId": "ReaderVaultPro"
+      "applicationId": "ReaderVaultFree"
     },
     "linux": {
       "icon": "build/icon.png",
