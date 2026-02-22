@@ -2,7 +2,10 @@
   "name": "guide-manager-xplat-pro",
   "version": "1.1.0",
   "private": true,
-  "author": "EERIE",
+  "author": {
+    "name": "EERIE",
+    "email": "eeriegoesd@gmail.com"
+  },
   "description": "Cross-platform Text Reader Manager Pro (Electron + Capacitor) with local storage and URL loading",  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
