@@ -61,7 +61,7 @@ const scrollStyle = document.createElement('style');
 scrollStyle.textContent = `
   .reader-scroll-btns {
     position: fixed;
-    right: 18px;
+    right: 80px;
     bottom: 80px;
     display: flex;
     flex-direction: column;
