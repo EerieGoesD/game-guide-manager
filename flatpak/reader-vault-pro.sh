@@ -1,2 +1,5 @@
-#!/bin/bash
-exec zypak-wrapper /app/reader-vault-pro/reader-vault-pro "$@"
+#!/bin/sh
+set -eu
+exec /app/main/node_modules/electron/dist/electron /app/main \
+  --no-sandbox \
+  "$@"
