@@ -206,6 +206,7 @@ app.innerHTML = `
           </p>
           <input type="text" id="urlInput" placeholder="https://gamefaqs.gamespot.com/...">
           <button id="btnUrlLoad" type="button">Load</button>
+          <button id="btnUrlPaste" type="button">Paste</button>
           <div id="loadError"></div>
         </div>
 
@@ -1657,6 +1658,15 @@ document.getElementById('btnUrl').addEventListener('click', showUrlLoader);
 
 document.getElementById('btnPasteContinue').addEventListener('click', loadFromPaste);
 document.getElementById('btnUrlLoad').addEventListener('click', loadFromUrl);
+
+document.getElementById('btnUrlPaste').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) document.getElementById('urlInput').value = text.trim();
+  } catch (e) {
+    showToast('Error', 'Could not access clipboard');
+  }
+});
 
 document.getElementById('btnResetTrim').addEventListener('click', resetTrim);
 document.getElementById('btnFind').addEventListener('click', openFind);
