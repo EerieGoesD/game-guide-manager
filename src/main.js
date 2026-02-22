@@ -229,6 +229,11 @@ app.innerHTML = `
           <button id="btnUrlLoad" type="button">Load</button>
           <button id="btnUrlPaste" type="button">Paste</button>
           <div id="loadError"></div>
+<div id="recentUrlsSection" class="recent-urls-section" style="display:none;">
+            <label>Recent URLs:</label>
+            <div id="recentUrlsList"></div>
+            <button class="danger" id="btnClearRecentUrls" type="button" style="margin-top:8px;">Delete Recent URLs</button>
+          </div>
         </div>
 
         <div id="loadingIndicator" class="loading" style="display:none">Loading guide...</div>
@@ -546,9 +551,38 @@ async function showScreen(screenId) {
   if (screenId === 'ioScreen') await refreshExportMetaOnly();
 }
 
+function getRecentUrls() {
+  try { return JSON.parse(localStorage.getItem('recentUrls') || '[]'); } catch { return []; }
+}
+function saveRecentUrl(url) {
+  let urls = getRecentUrls().filter(u => u !== url);
+  urls.unshift(url);
+  urls = urls.slice(0, 5);
+  localStorage.setItem('recentUrls', JSON.stringify(urls));
+  renderRecentUrls();
+}
+function clearRecentUrls() {
+  localStorage.removeItem('recentUrls');
+  renderRecentUrls();
+}
+function renderRecentUrls() {
+  const urls = getRecentUrls();
+  const section = document.getElementById('recentUrlsSection');
+  const list = document.getElementById('recentUrlsList');
+  if (!urls.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  list.innerHTML = urls.map(url => `
+    <div class="recent-url-item">
+      <span class="recent-url-text" title="${escapeHtml(url)}">${escapeHtml(url)}</span>
+      <button class="secondary" type="button" onclick="document.getElementById('urlInput').value='${escapeHtml(url)}'">Use</button>
+    </div>
+  `).join('');
+}
+
 function showUrlLoader() {
   document.getElementById('urlLoader').style.display = 'block';
   document.getElementById('textPaster').style.display = 'none';
+  renderRecentUrls();
 }
 
 function showTextPaster() {
@@ -1148,6 +1182,7 @@ async function loadFromUrl() {
     errorDiv.innerHTML = `<div class="success">✓ Loaded!</div>`;
     resetViewport();
     setTimeout(() => (errorDiv.innerHTML = ''), 2500);
+    saveRecentUrl(url);
     proceedToTrim();
   } catch (err) {
     loadingDiv.style.display = 'none';
@@ -1797,6 +1832,7 @@ document.getElementById('btnCopyLink').addEventListener('click', () => {
 });
 
 document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
+document.getElementById('btnClearRecentUrls').addEventListener('click', clearRecentUrls);
 document.getElementById('btnImportReplace').addEventListener('click', importReplaceAll);
 document.getElementById('btnImportMerge').addEventListener('click', importMergeKeepCurrent);
 

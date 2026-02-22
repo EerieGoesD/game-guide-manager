@@ -407,6 +407,10 @@ body.fullscreen .reader-content {
 .word-color-text { flex: 1; font-family: 'Consolas', monospace; color: #c7d5e0; }
 .word-color-remove { padding: 6px 12px; font-size: 14px; margin: 0; }
 
+.recent-urls-section { margin-top: 16px; }
+.recent-url-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.recent-url-text { flex: 1; font-size: 12px; color: #8b929a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .word-highlight-form {
   background: #1b2838;
   padding: 12px;
