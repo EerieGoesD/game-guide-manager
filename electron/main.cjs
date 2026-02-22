@@ -7,7 +7,7 @@ const axios = require('axios');
 const isDev = !app.isPackaged && process.env.ELECTRON_DEV === '1';
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.eerie.readervaultfree');
+  app.setAppUserModelId('com.eerie.readervaultpro');
 }
 
 const ENABLE_TRAY = false;
