@@ -27,6 +27,28 @@ function resetViewport() {
 })();
 
 const bridge = getBridge();
+const FREE_GUIDE_LIMIT = 1;
+
+// Free app hard limit: max 1 saved guide.
+// If user hits the limit, offer to open Reader Vault Pro in Microsoft Store.
+async function ensureFreeLimitForTargetGuideCount(targetCount) {
+  if (targetCount <= FREE_GUIDE_LIMIT) return true;
+
+  const ok = await themedConfirm({
+    title: 'Reader Vault Pro',
+    message: `Free version supports ${FREE_GUIDE_LIMIT} saved guide. Get Reader Vault Pro to save unlimited guides.`,
+    okText: 'Open Microsoft Store',
+    cancelText: 'Not now'
+  });
+
+  if (ok) {
+    try {
+      if (typeof bridge.openProStore === 'function') await bridge.openProStore();
+    } catch {}
+  }
+
+  return false;
+}
 
 // State
 let loadedContent = '';
@@ -57,6 +79,8 @@ const PRIVATEBIN_HOSTS = [
   'https://paste.i2pd.xyz'
 ];
 
+const app = document.getElementById('app');
+
 const scrollStyle = document.createElement('style');
 scrollStyle.textContent = `
   .reader-scroll-btns {
@@ -78,13 +102,11 @@ scrollStyle.textContent = `
 `;
 document.head.appendChild(scrollStyle);
 
-const app = document.getElementById('app');
-
 app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>📖 Reader Vault Pro</h1>
+      <h1>📖 Reader Vault Free</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
@@ -824,6 +846,8 @@ async function importReplaceAll() {
     dateAdded: String(g.dateAdded || new Date().toISOString()),
     wordColors: g.wordColors || {}
   }));
+  const okToImport = await ensureFreeLimitForTargetGuideCount(imported.length);
+  if (!okToImport) return;
   await bridge.writeGuides(imported);
   showToast('Imported', `Imported ${imported.length} guides`);
   await updateGuideCount();
@@ -852,6 +876,8 @@ async function importMergeKeepCurrent() {
     else existingIds.add(obj.id);
     return obj;
   });
+  const okToMerge = await ensureFreeLimitForTargetGuideCount(current.length + imported.length);
+  if (!okToMerge) return;
   const merged = current.concat(imported);
   await bridge.writeGuides(merged);
   showToast('Imported', `Imported ${imported.length} guides (merged)`);
@@ -1174,6 +1200,9 @@ async function finalSaveGuide() {
   if (!content) return alert('Content is empty.');
 
 const guides = await bridge.readGuides();
+
+const okToSave = await ensureFreeLimitForTargetGuideCount(guides.length + 1);
+if (!okToSave) return;
 
     guides.push({
     id: Date.now(),
