@@ -32,4 +32,4 @@ npx cap open ios      # or android
 
 ---
 
-Made by [EERIE](https://linktr.ee/eeriegoesd) · [Buy me a coffee](https://buymeacoffee.com/eeriegoesd)
+Made by [EERIE](https://linktr.ee/eeriegoesd) · [Buy Me a Coffee](https://buymeacoffee.com/eeriegoesd)
