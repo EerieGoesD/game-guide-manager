@@ -168,7 +168,7 @@ function createTray() {
     { label: 'Quit', click: () => app.quit() }
   ]);
 
-  tray.setToolTip('Guide Manager');
+  tray.setToolTip('Reader Vault');
   tray.setContextMenu(menu);
 
   tray.on('double-click', () => {
@@ -262,7 +262,7 @@ function fetchUrlViaBrowserWindow(url) {
             if (document.getElementById('ggm-import-overlay')) return;
             const btn = document.createElement('button');
             btn.id = 'ggm-import-overlay';
-            btn.textContent = 'Import guide into Guide Manager';
+            btn.textContent = 'Import guide into Reader Vault';
             btn.style.cssText = 'position:fixed; top:12px; right:12px; z-index:999999; padding:12px 16px; font-size:14px; border:0; border-radius:8px; background:#66c0f4; color:#000; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.35);';
             btn.onclick = () => window.GGMImport.send(extract());
             document.documentElement.appendChild(btn);

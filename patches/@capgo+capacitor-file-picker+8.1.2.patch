@@ -1,0 +1,13 @@
+diff --git a/node_modules/@capgo/capacitor-file-picker/android/build.gradle b/node_modules/@capgo/capacitor-file-picker/android/build.gradle
+index c14b2e2..a971f60 100644
+--- a/node_modules/@capgo/capacitor-file-picker/android/build.gradle
++++ b/node_modules/@capgo/capacitor-file-picker/android/build.gradle
+@@ -30,7 +30,7 @@ android {
+     buildTypes {
+         release {
+             minifyEnabled false
+-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
++            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+         }
+     }
+     lintOptions {

@@ -5,6 +5,7 @@ import { normalizeGuideUrl, extractTextFromHtml } from './htmlToText.js';
 import { encodeGuidesBackupToString, decodeGuidesBackupFromString } from './backup.js';
 import { extractTextFromPdfArrayBuffer } from './pdfToText.js';
 import { Capacitor } from '@capacitor/core';
+import { initIAP, getIsPro, purchasePro, restorePurchases } from './iap.js';
 import { StatusBar } from '@capacitor/status-bar';
 import { CapgoFilePicker as FilePicker } from '@capgo/capacitor-file-picker';
 
@@ -29,22 +30,29 @@ function resetViewport() {
 const bridge = getBridge();
 const FREE_GUIDE_LIMIT = 1;
 
+initIAP(() => {
+  showToast('Unlocked!', 'Reader Vault Pro is now active 🎉');
+});
+
 // Free app hard limit: max 1 saved guide.
 // If user hits the limit, offer to open Reader Vault Free in Microsoft Store.
 async function ensureFreeLimitForTargetGuideCount(targetCount) {
+  if (getIsPro()) return true;
   if (targetCount <= FREE_GUIDE_LIMIT) return true;
 
   const ok = await themedConfirm({
-    title: 'Reader Vault Free',
-    message: `Free version supports ${FREE_GUIDE_LIMIT} saved guide. Get Reader Vault Pro to save unlimited guides.`,
-    okText: 'Open Microsoft Store',
+    title: 'Reader Vault',
+    message: `Free version supports ${FREE_GUIDE_LIMIT} saved guide.\n\nUnlock unlimited guides for a one-time purchase.`,
+    okText: 'Unlock Pro ($4.99)',
     cancelText: 'Not now'
   });
 
   if (ok) {
     try {
-      if (typeof bridge.openProStore === 'function') await bridge.openProStore();
-    } catch {}
+      await purchasePro();
+    } catch (e) {
+      showToast('Purchase failed', String(e?.message || e));
+    }
   }
 
   return false;
@@ -106,7 +114,7 @@ app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>📖 Reader Vault Free</h1>
+      <h1>📖 Reader Vault</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
@@ -133,11 +141,12 @@ app.innerHTML = `
       <p class="help-text">        Platform: <strong id="platformLabel"></strong>
       </p>
 
-      <div class="footer">
-        <div class="footer-line">
-          Made by <a class="footer-eerie" href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a>
+      <div class="footer" style="flex-direction:row; align-items:center; justify-content:space-between;">
+        <button class="secondary" id="btnRestorePurchase" type="button" style="margin:0; padding:14px 28px; font-size:16px;">Restore Purchase</button>
+        <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+          <div class="footer-line">Made by <a class="footer-eerie" href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a></div>
+          <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Buy Me a Coffee ☕</a>
         </div>
-        <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Buy Me a Coffee ☕</a>
       </div>
     </div>
 
@@ -1869,6 +1878,10 @@ setTab('export');
 updateGuideCount();
 
 window.addEventListener('resize', resetViewport);
+document.getElementById('btnRestorePurchase')?.addEventListener('click', () => {
+  restorePurchases();
+  showToast('Restoring...', 'Checking your previous purchases');
+});
 window.addEventListener('orientationchange', () => {
   setTimeout(resetViewport, 100);
 });

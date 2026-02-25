@@ -6,11 +6,13 @@
     "name": "EERIE",
     "email": "eeriegoesd@gmail.com"
   },
-  "description": "Cross-platform Text Reader Manager Free (Electron + Capacitor) with local storage and URL loading",  "main": "electron/main.cjs",
+  "description": "Cross-platform Text Reader Manager Free (Electron + Capacitor) with local storage and URL loading",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "postinstall": "patch-package",
     "preview": "vite preview",
     "dev:electron": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build:electron": "npm run build && electron-builder",
@@ -38,13 +40,14 @@
     "concurrently": "^9.0.0",
     "electron": "^40.4.1",
     "electron-builder": "^24.13.3",
+    "patch-package": "^8.0.1",
     "png2icons": "^2.0.1",
     "vite": "^5.4.0",
     "wait-on": "^7.2.0"
   },
   "build": {
     "appId": "com.eerie.readervaultfree",
-    "productName": "Reader Vault Free",
+    "productName": "Reader Vault",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -58,19 +61,24 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": ["appx"]
+      "target": [
+        "appx"
+      ]
     },
     "appx": {
       "identityName": "20715EerieGoesD.ReaderVaultFree",
       "publisher": "CN=A2A89A47-0B2B-4C32-B85C-9753888A9FFC",
-      "displayName": "Reader Vault Free",
+      "displayName": "Reader Vault",
       "publisherDisplayName": "EERIE",
       "applicationId": "ReaderVaultFree"
     },
     "linux": {
       "icon": "build/icon.png",
       "category": "Utility",
-      "target": ["AppImage", "deb"]
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   },
   "overrides": {
