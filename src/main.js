@@ -1878,9 +1878,14 @@ setTab('export');
 updateGuideCount();
 
 window.addEventListener('resize', resetViewport);
-document.getElementById('btnRestorePurchase')?.addEventListener('click', () => {
-  restorePurchases();
+document.getElementById('btnRestorePurchase')?.addEventListener('click', async () => {
   showToast('Restoring...', 'Checking your previous purchases');
+  try {
+    const isPro = await restorePurchases();
+    if (!isPro) showToast('Nothing found', 'No previous purchase found for this account.');
+  } catch (e) {
+    showToast('Error', String(e?.message || e));
+  }
 });
 window.addEventListener('orientationchange', () => {
   setTimeout(resetViewport, 100);

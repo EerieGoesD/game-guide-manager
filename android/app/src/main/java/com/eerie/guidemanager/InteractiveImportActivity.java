@@ -16,7 +16,7 @@ import android.widget.LinearLayout;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowCompat;
+import androidx.activity.EdgeToEdge;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.json.JSONArray;
@@ -38,7 +38,7 @@ public class InteractiveImportActivity extends AppCompatActivity {
     super.onCreate(savedInstanceState);
 
     // Enable edge-to-edge display
-    WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+    EdgeToEdge.enable(this);
 
     String url = getIntent().getStringExtra("url");
     if (url == null) url = "";
