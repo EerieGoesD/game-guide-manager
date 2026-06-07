@@ -247,6 +247,29 @@ body.fullscreen .reader-content {
 .footer-eerie { color: #66c0f4 !important; font-weight: 800; }
 .footer-line { margin-bottom: 6px; }
 
+/* Footer action links (Report Issue / Suggest Feature / Feedback) */
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+.footer-links a {
+  padding: 0 12px;
+  border-right: 1px solid #417a9b;
+}
+.footer-links a:last-child {
+  padding-right: 0;
+  border-right: none;
+}
+.footer-links a:first-child {
+  padding-left: 0;
+}
+
+/* Support / donation link stays yellow */
+.footer-coffee { color: #facc15 !important; font-weight: 700; }
+.footer-coffee:hover { color: #facc15 !important; text-decoration: underline; }
+
 /* Toast */
 .toast {
   position: fixed;

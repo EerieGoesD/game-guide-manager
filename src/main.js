@@ -131,7 +131,12 @@ app.innerHTML = `
         <div class="footer-line">
           Made by <a class="footer-eerie" href="https://eeriegoesd.com/" target="_blank" rel="noreferrer">EERIE</a>
         </div>
-        <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Buy Me a Coffee ☕</a>
+        <div class="footer-links">
+          <a href="https://github.com/EerieGoesD/reader-vault/issues/new?template=bug-report.md" target="_blank" rel="noreferrer">Report Issue</a>
+          <a href="https://github.com/EerieGoesD/reader-vault/issues/new?template=feature-request.md" target="_blank" rel="noreferrer">Suggest Feature</a>
+          <a href="https://github.com/EerieGoesD/reader-vault/discussions" target="_blank" rel="noreferrer">Feedback</a>
+        </div>
+        <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Support This Project</a>
       </div>
     </div>
 
@@ -478,13 +483,13 @@ app.innerHTML = `
         <div class="modal-title" id="supportTitle">Support</div>
         <div class="modal-body" id="supportBody">
 	<p style="margin-bottom:10px;"><strong>📖 Reader Vault</strong> lets you save books, texts, guides, and any long-form text for offline reading.</p>
-	<p style="margin-bottom:6px;">📥 <strong>Load</strong> a text from a file, paste text, or enter a URL. When loading from a URL, the app fetches the page and strips away all the HTML — ads, menus, buttons — leaving just the plain readable text.</p>
+	<p style="margin-bottom:6px;">📥 <strong>Load</strong> a text from a file, paste text, or enter a URL. When loading from a URL, the app fetches the page and strips away all the HTML (ads, menus, buttons), leaving just the plain readable text.</p>
       <p style="margin-bottom:6px;">✂️ <strong>Trim</strong> the text, then name and save it.</p>
       <p style="margin-bottom:6px;">📚 <strong>Read</strong> your guides with progress tracking and word highlighting.</p>
       <p style="margin-bottom:14px;">📦 <strong>Import/Export</strong> to sync guides across devices via an encrypted link.</p>
       Made by <a href="https://eeriegoesd.com/" target="_blank" rel="noreferrer">EERIE</a><br>
       <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
-        Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
+        Support&nbsp;This&nbsp;Project
       </a>        </div>
       </div>
     </div>
