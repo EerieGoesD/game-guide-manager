@@ -1,5 +1,5 @@
-// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\guidemanager\InteractiveImportPlugin.java
-package com.eerie.guidemanager;
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\readervault\InteractiveImportPlugin.java
+package com.eerie.readervault;
 
 import android.app.Activity;
 import android.content.Intent;

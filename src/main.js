@@ -49,6 +49,22 @@ let isFullscreen = false;
 let readerTheme = 'dark';
 let wordColors = {};
 
+// Reader display prefs (global, persisted)
+let readerFontSize = (() => { const v = parseInt(localStorage.getItem('readerFontSize') || '16', 10); return Number.isFinite(v) ? clamp(v, 12, 30) : 16; })();
+let readerLineHeight = (() => { const v = parseFloat(localStorage.getItem('readerLineHeight') || '1.8'); return Number.isFinite(v) ? clamp(v, 1.2, 2.6) : 1.8; })();
+
+// Read-aloud (TTS) state
+let speechChunks = [];
+let speechIndex = 0;
+let isSpeaking = false;
+
+// Bookmarks for the open guide
+let currentBookmarks = [];
+
+// Library view state
+let librarySearch = '';
+let librarySort = localStorage.getItem('librarySort') || 'recent';
+
 // Backup meta (no files, no codes UI)
 let lastBackupMeta = null; // { createdAt, bytes, encrypted, guideCount }
 const PRIVATEBIN_HOSTS = [
@@ -84,7 +100,7 @@ app.innerHTML = `
   <div class="container">
 
     <div id="mainScreen" class="screen active">
-      <h1>📖 Reader Vault Pro</h1>
+      <h1>📖 Reader Vault</h1>
 
       <div class="main-menu">
         <div class="menu-button" id="btnLoadNew">
@@ -113,7 +129,7 @@ app.innerHTML = `
 
       <div class="footer">
         <div class="footer-line">
-          Made by <a class="footer-eerie" href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a>
+          Made by <a class="footer-eerie" href="https://eeriegoesd.com/" target="_blank" rel="noreferrer">EERIE</a>
         </div>
         <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Buy Me a Coffee ☕</a>
       </div>
@@ -325,6 +341,16 @@ app.innerHTML = `
         <button class="secondary" id="btnCancelSelect" type="button" style="display:none;">Cancel</button>
       </div>
 
+      <div class="library-controls">
+        <input type="text" id="librarySearchInput" placeholder="🔍 Search by name..." autocomplete="off">
+        <select id="librarySortSelect" title="Sort guides">
+          <option value="recent">Recently added</option>
+          <option value="name">Name (A-Z)</option>
+          <option value="progressHigh">Progress (high to low)</option>
+          <option value="progressLow">Progress (low to high)</option>
+        </select>
+      </div>
+
       <div id="savedGuidesList" class="guide-grid"></div>
     </div>
 
@@ -332,6 +358,9 @@ app.innerHTML = `
       <div class="button-group" id="readerButtonGroup">
         <button id="backToGuides" type="button">← Back</button>
         <button class="secondary btn-fixed-width" id="btnFullscreen" type="button">⛶ Fullscreen</button>
+        <button class="secondary btn-fixed-width" id="btnDisplay" type="button">🔡 Text Size</button>
+        <button class="secondary btn-fixed-width" id="btnSpeak" type="button">🔊 Listen</button>
+        <button class="secondary btn-fixed-width" id="btnBookmarks" type="button">🔖 Bookmarks</button>
         <button class="secondary btn-fixed-width" id="btnTheme" type="button">🎨 Theme</button>
         <button class="secondary" id="btnWordColors" type="button">🖍️ Colors</button>
         <button class="danger" id="btnDelete" type="button">🗑️ Delete</button>
@@ -342,6 +371,9 @@ app.innerHTML = `
           <div class="reader-header-top">
             <div class="reader-title" id="readerTitle"></div>
             <div class="reader-header-actions" id="readerHeaderActions" style="display:none;">
+              <button class="secondary reader-icon-btn" id="btnDisplayInline" type="button" title="Text Size">🔡</button>
+              <button class="secondary reader-icon-btn" id="btnSpeakInline" type="button" title="Listen">🔊</button>
+              <button class="secondary reader-icon-btn" id="btnBookmarksInline" type="button" title="Bookmarks">🔖</button>
               <button class="secondary reader-icon-btn" id="btnThemeInline" type="button" title="Theme">🎨</button>
               <button class="secondary reader-icon-btn" id="btnWordColorsInline" type="button" title="Colors">🖍️</button>
               <button class="fullscreen-exit-btn reader-icon-btn" id="fullscreenExitBtn" type="button" title="Exit Fullscreen">✕</button>
@@ -407,6 +439,39 @@ app.innerHTML = `
       </div>
     </div>
 
+    <div id="readerSettingsModal" class="modal" style="display:none">
+      <div class="modal-card">
+        <div class="modal-title">Display</div>
+        <div class="modal-body">
+          <div class="slider-row">
+            <label>Font size: <span id="fontSizeValue"></span></label>
+            <input type="range" id="fontSizeSlider" min="12" max="30" step="1">
+          </div>
+          <div class="slider-row">
+            <label>Line spacing: <span id="lineHeightValue"></span></label>
+            <input type="range" id="lineHeightSlider" min="1.2" max="2.6" step="0.1">
+          </div>
+          <button class="secondary" id="btnResetReaderStyle" type="button">Reset to default</button>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" id="readerSettingsClose" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="bookmarksModal" class="modal" style="display:none">
+      <div class="modal-card">
+        <div class="modal-title">Bookmarks</div>
+        <div class="modal-body">
+          <button id="btnAddBookmark" type="button">🔖 Bookmark current position</button>
+          <div class="bookmarks-list" id="bookmarksList"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" id="bookmarksClose" type="button">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div id="supportModal" class="modal" style="display:none">
       <div class="modal-card modal-compact">
         <button class="modal-x" id="supportClose" type="button">×</button>
@@ -417,7 +482,7 @@ app.innerHTML = `
       <p style="margin-bottom:6px;">✂️ <strong>Trim</strong> the text, then name and save it.</p>
       <p style="margin-bottom:6px;">📚 <strong>Read</strong> your guides with progress tracking and word highlighting.</p>
       <p style="margin-bottom:14px;">📦 <strong>Import/Export</strong> to sync guides across devices via an encrypted link.</p>
-      Made by <a href="https://linktr.ee/eeriegoesd" target="_blank" rel="noreferrer">EERIE</a><br>
+      Made by <a href="https://eeriegoesd.com/" target="_blank" rel="noreferrer">EERIE</a><br>
       <a href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">
         Buy&nbsp;Me&nbsp;a&nbsp;Coffee&nbsp;☕
       </a>        </div>
@@ -856,7 +921,8 @@ async function importReplaceAll() {
     content: String(g.content || ''),
     progress: Number(g.progress) || 0,
     dateAdded: String(g.dateAdded || new Date().toISOString()),
-    wordColors: g.wordColors || {}
+    wordColors: g.wordColors || {},
+    bookmarks: Array.isArray(g.bookmarks) ? g.bookmarks : []
   }));
   await bridge.writeGuides(imported);
   showToast('Imported', `Imported ${imported.length} guides`);
@@ -880,7 +946,8 @@ async function importMergeKeepCurrent() {
       content: String(g.content || ''),
       progress: Number(g.progress) || 0,
       dateAdded: String(g.dateAdded || new Date().toISOString()),
-      wordColors: g.wordColors || {}
+      wordColors: g.wordColors || {},
+      bookmarks: Array.isArray(g.bookmarks) ? g.bookmarks : []
     };
     if (!obj.id || existingIds.has(obj.id)) obj.id = makeUniqueId(existingIds);
     else existingIds.add(obj.id);
@@ -1216,7 +1283,8 @@ const guides = await bridge.readGuides();
     content,
     progress: 0,
     dateAdded: new Date().toISOString(),
-    wordColors: {}
+    wordColors: {},
+    bookmarks: []
   });
   await bridge.writeGuides(guides);
   loadedContent = '';
@@ -1233,13 +1301,23 @@ const guides = await bridge.readGuides();
 }
 
 async function loadSavedGuides() {
-  const guides = await bridge.readGuides();
+  const all = await bridge.readGuides();
   const container = document.getElementById('savedGuidesList');
-  if (!guides.length) {
+  if (!all.length) {
     container.innerHTML = `
       <div style="grid-column: 1/-1; text-align:center; padding:50px; color:#8b929a;">
         <h3 style="color:#66c0f4; margin-bottom:10px;">No saved guides yet</h3>
         <p>Load a guide to get started.</p>
+      </div>
+    `;
+    return;
+  }
+  const guides = applyLibraryView(all);
+  if (!guides.length) {
+    container.innerHTML = `
+      <div style="grid-column: 1/-1; text-align:center; padding:50px; color:#8b929a;">
+        <h3 style="color:#66c0f4; margin-bottom:10px;">No matches</h3>
+        <p>No guides match "${escapeHtml(librarySearch)}".</p>
       </div>
     `;
     return;
@@ -1281,13 +1359,16 @@ async function loadSavedGuides() {
 }
 
 async function openGuide(id) {
+  stopSpeak();
   currentGuideId = id;
   const guides = await bridge.readGuides();
   const guide = guides.find(g => g.id === id);
   if (!guide) return;
   wordColors = guide.wordColors || {};
+  currentBookmarks = Array.isArray(guide.bookmarks) ? guide.bookmarks.slice() : [];
   document.getElementById('readerTitle').textContent = guide.name;
   applyWordHighlights(guide.content);
+  applyReaderTextStyle();
   setProgressUI(guide.progress);
   await showScreen('readerScreen');
   setTimeout(() => {
@@ -1359,8 +1440,10 @@ function setProgressUI(progress) {
 }
 
 function closeReader() {
+  stopSpeak();
   currentGuideId = null;
   wordColors = {};
+  currentBookmarks = [];
   if (isFullscreen) exitFullscreen();
   showScreen('savedScreen');
 }
@@ -1375,11 +1458,13 @@ async function deleteCurrentGuide() {
     danger: true
   });
   if (!ok) return;
+  stopSpeak();
   const guides = await bridge.readGuides();
   const next = guides.filter(g => g.id !== currentGuideId);
   await bridge.writeGuides(next);
   currentGuideId = null;
   wordColors = {};
+  currentBookmarks = [];
   await updateGuideCount();
   if (isFullscreen) exitFullscreen();
   await showScreen('savedScreen');
@@ -1511,6 +1596,258 @@ function reapplyContent() {
     const guide = guides.find(g => g.id === currentGuideId);
     if (guide) applyWordHighlights(guide.content);
   });
+}
+
+/* Reader display: font size + line spacing */
+function applyReaderTextStyle() {
+  const c = document.getElementById('readerContent');
+  if (!c) return;
+  c.style.fontSize = readerFontSize + 'px';
+  c.style.lineHeight = String(readerLineHeight);
+}
+
+function commitReaderStyleChange() {
+  // Preserve reading position (as a fraction) across a size change.
+  const c = document.getElementById('readerContent');
+  const maxBefore = c.scrollHeight - c.clientHeight;
+  const frac = maxBefore > 0 ? c.scrollTop / maxBefore : 0;
+  applyReaderTextStyle();
+  const maxAfter = c.scrollHeight - c.clientHeight;
+  c.scrollTop = frac * Math.max(0, maxAfter);
+}
+
+function updateReaderSettingsLabels() {
+  document.getElementById('fontSizeValue').textContent = readerFontSize + 'px';
+  document.getElementById('lineHeightValue').textContent = readerLineHeight.toFixed(1);
+}
+
+function showReaderSettingsModal() {
+  const modal = document.getElementById('readerSettingsModal');
+  document.getElementById('fontSizeSlider').value = String(readerFontSize);
+  document.getElementById('lineHeightSlider').value = String(readerLineHeight);
+  updateReaderSettingsLabels();
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+}
+
+function hideReaderSettingsModal() {
+  const modal = document.getElementById('readerSettingsModal');
+  modal.classList.remove('show');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+function onFontSizeInput(e) {
+  readerFontSize = clamp(parseInt(e.target.value, 10) || 16, 12, 30);
+  localStorage.setItem('readerFontSize', String(readerFontSize));
+  updateReaderSettingsLabels();
+  commitReaderStyleChange();
+}
+
+function onLineHeightInput(e) {
+  readerLineHeight = clamp(parseFloat(e.target.value) || 1.8, 1.2, 2.6);
+  localStorage.setItem('readerLineHeight', String(readerLineHeight));
+  updateReaderSettingsLabels();
+  commitReaderStyleChange();
+}
+
+function resetReaderStyle() {
+  readerFontSize = 16;
+  readerLineHeight = 1.8;
+  localStorage.setItem('readerFontSize', '16');
+  localStorage.setItem('readerLineHeight', '1.8');
+  document.getElementById('fontSizeSlider').value = '16';
+  document.getElementById('lineHeightSlider').value = '1.8';
+  updateReaderSettingsLabels();
+  commitReaderStyleChange();
+}
+
+/* Read-aloud (TTS) */
+function ttsSupported() {
+  return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
+}
+
+function chunkTextForSpeech(text) {
+  const clean = (text || '').replace(/\s+/g, ' ').trim();
+  if (!clean) return [];
+  const LIMIT = 200;
+  const parts = clean.match(/[^.!?]+[.!?]*\s*/g) || [clean];
+  const chunks = [];
+  let buf = '';
+  for (const p of parts) {
+    if ((buf + p).length > LIMIT) {
+      if (buf.trim()) chunks.push(buf.trim());
+      if (p.length > LIMIT) {
+        for (let i = 0; i < p.length; i += LIMIT) chunks.push(p.slice(i, i + LIMIT).trim());
+        buf = '';
+      } else {
+        buf = p;
+      }
+    } else {
+      buf += p;
+    }
+  }
+  if (buf.trim()) chunks.push(buf.trim());
+  return chunks.filter(Boolean);
+}
+
+function updateSpeakButtons() {
+  const main = document.getElementById('btnSpeak');
+  if (main) main.textContent = isSpeaking ? '⏹ Stop' : '🔊 Listen';
+  const inline = document.getElementById('btnSpeakInline');
+  if (inline) inline.textContent = isSpeaking ? '⏹' : '🔊';
+}
+
+function speakNext() {
+  if (!isSpeaking) return;
+  if (speechIndex >= speechChunks.length) { stopSpeak(); return; }
+  const u = new SpeechSynthesisUtterance(speechChunks[speechIndex]);
+  u.onend = () => { speechIndex++; speakNext(); };
+  u.onerror = () => { speechIndex++; speakNext(); };
+  try { window.speechSynthesis.speak(u); } catch { stopSpeak(); }
+}
+
+function startSpeak() {
+  if (!ttsSupported()) {
+    showToast('Not supported', 'Read-aloud is unavailable on this device.');
+    return;
+  }
+  const text = document.getElementById('readerContent').textContent || '';
+  speechChunks = chunkTextForSpeech(text);
+  if (!speechChunks.length) {
+    showToast('Nothing to read', 'This guide has no text.');
+    return;
+  }
+  try { window.speechSynthesis.cancel(); } catch {}
+  speechIndex = 0;
+  isSpeaking = true;
+  updateSpeakButtons();
+  speakNext();
+}
+
+function stopSpeak() {
+  isSpeaking = false;
+  speechChunks = [];
+  speechIndex = 0;
+  if (ttsSupported()) { try { window.speechSynthesis.cancel(); } catch {} }
+  updateSpeakButtons();
+}
+
+function toggleSpeak() {
+  if (isSpeaking) stopSpeak();
+  else startSpeak();
+}
+
+/* Bookmarks */
+function getReaderPct() {
+  const c = document.getElementById('readerContent');
+  const maxScroll = c.scrollHeight - c.clientHeight;
+  return maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 0;
+}
+
+function makeBookmarkLabel(pct) {
+  const text = document.getElementById('readerContent').textContent || '';
+  if (!text) return `Position ${pct}%`;
+  const approx = Math.floor((pct / 100) * text.length);
+  let snippet = text.slice(approx, approx + 60).replace(/\s+/g, ' ').trim();
+  if (!snippet) snippet = text.slice(0, 60).replace(/\s+/g, ' ').trim();
+  return snippet || `Position ${pct}%`;
+}
+
+async function saveBookmarks() {
+  if (currentGuideId == null) return;
+  const guides = await bridge.readGuides();
+  const guide = guides.find(g => g.id === currentGuideId);
+  if (guide) {
+    guide.bookmarks = currentBookmarks;
+    await bridge.writeGuides(guides);
+  }
+}
+
+async function addBookmark() {
+  if (currentGuideId == null) return;
+  const pct = getReaderPct();
+  currentBookmarks.push({ id: Date.now(), pct, label: makeBookmarkLabel(pct), createdAt: new Date().toISOString() });
+  currentBookmarks.sort((a, b) => a.pct - b.pct);
+  await saveBookmarks();
+  refreshBookmarksList();
+  showToast('Bookmarked', `Saved at ${pct}%`);
+}
+
+function jumpToBookmark(pct) {
+  const c = document.getElementById('readerContent');
+  const maxScroll = c.scrollHeight - c.clientHeight;
+  c.scrollTop = (pct / 100) * Math.max(0, maxScroll);
+  hideBookmarksModal();
+}
+
+async function removeBookmark(id) {
+  currentBookmarks = currentBookmarks.filter(b => b.id !== id);
+  await saveBookmarks();
+  refreshBookmarksList();
+}
+
+function refreshBookmarksList() {
+  const list = document.getElementById('bookmarksList');
+  if (!currentBookmarks.length) {
+    list.innerHTML = '<p class="help-text">No bookmarks yet. Tap the button above to save your spot.</p>';
+    return;
+  }
+  list.innerHTML = currentBookmarks.map(b => `
+    <div class="bookmark-item" data-pct="${b.pct}">
+      <span class="bookmark-pct">${b.pct}%</span>
+      <span class="bookmark-label">${escapeHtml(b.label)}</span>
+      <button class="danger bookmark-remove" data-id="${b.id}" type="button">Remove</button>
+    </div>
+  `).join('');
+  list.querySelectorAll('.bookmark-item').forEach(item => {
+    const pct = Number(item.dataset.pct);
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.bookmark-remove')) return;
+      jumpToBookmark(pct);
+    });
+  });
+  list.querySelectorAll('.bookmark-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeBookmark(Number(btn.dataset.id));
+    });
+  });
+}
+
+function showBookmarksModal() {
+  const modal = document.getElementById('bookmarksModal');
+  refreshBookmarksList();
+  modal.style.display = 'flex';
+  modal.classList.add('show');
+}
+
+function hideBookmarksModal() {
+  const modal = document.getElementById('bookmarksModal');
+  modal.classList.remove('show');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
+}
+
+/* Library view: search + sort */
+function applyLibraryView(guides) {
+  let list = guides.slice();
+  const q = librarySearch.trim().toLowerCase();
+  if (q) list = list.filter(g => String(g.name || '').toLowerCase().includes(q));
+  switch (librarySort) {
+    case 'name':
+      list.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+      break;
+    case 'progressHigh':
+      list.sort((a, b) => (Number(b.progress) || 0) - (Number(a.progress) || 0));
+      break;
+    case 'progressLow':
+      list.sort((a, b) => (Number(a.progress) || 0) - (Number(b.progress) || 0));
+      break;
+    case 'recent':
+    default:
+      list.sort((a, b) => new Date(b.dateAdded || 0) - new Date(a.dateAdded || 0));
+      break;
+  }
+  return list;
 }
 
 /* XHR helpers (bypass Capacitor's native HTTP interceptor) */
@@ -1759,6 +2096,35 @@ document.getElementById('wordInput').addEventListener('keydown', (e) => {
   }
 });
 
+// Reader display (font size + line spacing)
+document.getElementById('btnDisplay').addEventListener('click', showReaderSettingsModal);
+document.getElementById('btnDisplayInline').addEventListener('click', showReaderSettingsModal);
+document.getElementById('readerSettingsClose').addEventListener('click', hideReaderSettingsModal);
+document.getElementById('fontSizeSlider').addEventListener('input', onFontSizeInput);
+document.getElementById('lineHeightSlider').addEventListener('input', onLineHeightInput);
+document.getElementById('btnResetReaderStyle').addEventListener('click', resetReaderStyle);
+
+// Read-aloud
+document.getElementById('btnSpeak').addEventListener('click', toggleSpeak);
+document.getElementById('btnSpeakInline').addEventListener('click', toggleSpeak);
+
+// Bookmarks
+document.getElementById('btnBookmarks').addEventListener('click', showBookmarksModal);
+document.getElementById('btnBookmarksInline').addEventListener('click', showBookmarksModal);
+document.getElementById('bookmarksClose').addEventListener('click', hideBookmarksModal);
+document.getElementById('btnAddBookmark').addEventListener('click', addBookmark);
+
+// Library search + sort
+document.getElementById('librarySearchInput').addEventListener('input', (e) => {
+  librarySearch = e.target.value || '';
+  loadSavedGuides();
+});
+document.getElementById('librarySortSelect').addEventListener('change', (e) => {
+  librarySort = e.target.value || 'recent';
+  localStorage.setItem('librarySort', librarySort);
+  loadSavedGuides();
+});
+
 document.getElementById('previewContent').addEventListener('scroll', updatePreviewProgress);
 document.getElementById('readerContent').addEventListener('scroll', updateReadingProgress);
 
@@ -1838,6 +2204,7 @@ document.getElementById('btnImportMerge').addEventListener('click', importMergeK
 
 setTab('export');
 updateGuideCount();
+document.getElementById('librarySortSelect').value = librarySort;
 
 window.addEventListener('resize', resetViewport);
 window.addEventListener('orientationchange', () => {

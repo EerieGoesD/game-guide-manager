@@ -7,7 +7,7 @@ const axios = require('axios');
 const isDev = !app.isPackaged && process.env.ELECTRON_DEV === '1';
 
 if (process.platform === 'win32') {
-  app.setAppUserModelId('com.eerie.readervaultpro');
+  app.setAppUserModelId('com.eerie.readervault');
 }
 
 const ENABLE_TRAY = false;
@@ -168,7 +168,7 @@ function createTray() {
     { label: 'Quit', click: () => app.quit() }
   ]);
 
-  tray.setToolTip('Guide Manager');
+  tray.setToolTip('Reader Vault');
   tray.setContextMenu(menu);
 
   tray.on('double-click', () => {
@@ -188,19 +188,6 @@ ipcMain.handle('ggm_readGuides', async () => {
 
 ipcMain.handle('ggm_writeGuides', async (_event, guides) => {
   await writeGuides(guides);
-  return true;
-});
-
-// Reader Vault Pro (Microsoft Store ProductId)
-const PRO_APP_STORE_ID = '9N27J261X0SN';
-
-ipcMain.handle('ggm_open_pro_store', async () => {
-  if (process.platform === 'win32') {
-    await shell.openExternal(`ms-windows-store://pdp/?productid=${PRO_APP_STORE_ID}`);
-  } else {
-    // Works on Linux/macOS to at least show the listing in a browser
-    await shell.openExternal(`https://apps.microsoft.com/detail/${PRO_APP_STORE_ID}`);
-  }
   return true;
 });
 
@@ -262,7 +249,7 @@ function fetchUrlViaBrowserWindow(url) {
             if (document.getElementById('ggm-import-overlay')) return;
             const btn = document.createElement('button');
             btn.id = 'ggm-import-overlay';
-            btn.textContent = 'Import guide into Guide Manager';
+            btn.textContent = 'Import guide into Reader Vault';
             btn.style.cssText = 'position:fixed; top:12px; right:12px; z-index:999999; padding:12px 16px; font-size:14px; border:0; border-radius:8px; background:#66c0f4; color:#000; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,.35);';
             btn.onclick = () => window.GGMImport.send(extract());
             document.documentElement.appendChild(btn);

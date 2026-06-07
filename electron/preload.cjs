@@ -10,8 +10,5 @@ contextBridge.exposeInMainWorld('GuideBridge', {
 
   readGuides: () => ipcRenderer.invoke('ggm_readGuides'),
 
-  writeGuides: (guides) => ipcRenderer.invoke('ggm_writeGuides', guides),
-
-  // Free app: open Microsoft Store listing for Reader Vault Pro (separate app)
-  openProStore: () => ipcRenderer.invoke('ggm_open_pro_store')
+  writeGuides: (guides) => ipcRenderer.invoke('ggm_writeGuides', guides)
 });

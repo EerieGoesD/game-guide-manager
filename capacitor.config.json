@@ -1,6 +1,6 @@
 {
-  "appId": "com.eerie.guidemanager",
-  "appName": "Reading Manager",
+  "appId": "com.eerie.readervault",
+  "appName": "Reader Vault",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "plugins": {

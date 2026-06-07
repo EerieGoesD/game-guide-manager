@@ -1,5 +1,5 @@
-// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\guidemanager\InteractiveImportActivity.java
-package com.eerie.guidemanager;
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\readervault\InteractiveImportActivity.java
+package com.eerie.readervault;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -71,7 +71,7 @@ public class InteractiveImportActivity extends AppCompatActivity {
       new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
     lp.setMargins(0, 0, dp(8), 0);
     bar.addView(cancel, lp);
-    
+
     LinearLayout.LayoutParams lp2 =
       new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
     bar.addView(importBtn, lp2);
@@ -93,13 +93,13 @@ public class InteractiveImportActivity extends AppCompatActivity {
     ViewCompat.setOnApplyWindowInsetsListener(root, (v, insets) -> {
       int topInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top;
       int bottomInset = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
-      
+
       // Add top inset to bar padding
       bar.setPadding(padH, padV + topInset, padH, padV);
-      
+
       // Add bottom inset to webview
       webView.setPadding(0, 0, 0, bottomInset);
-      
+
       return WindowInsetsCompat.CONSUMED;
     });
 

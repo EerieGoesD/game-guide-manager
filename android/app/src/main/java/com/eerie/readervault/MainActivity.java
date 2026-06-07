@@ -1,5 +1,5 @@
-// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\guidemanager\MainActivity.java
-package com.eerie.guidemanager;
+// C:\Users\eerie\Documents\GitHub\game-guide-manager\android\app\src\main\java\com\eerie\readervault\MainActivity.java
+package com.eerie.readervault;
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;

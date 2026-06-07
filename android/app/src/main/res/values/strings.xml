@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Guide Manager</string>
-    <string name="title_activity_main">Guide Manager</string>
-    <string name="package_name">com.eerie.guidemanager</string>
-    <string name="custom_url_scheme">com.eerie.guidemanager</string>
+    <string name="app_name">Reader Vault</string>
+    <string name="title_activity_main">Reader Vault</string>
+    <string name="package_name">com.eerie.readervault</string>
+    <string name="custom_url_scheme">com.eerie.readervault</string>
 </resources>

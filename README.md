@@ -1,4 +1,4 @@
-# Reader Vault Pro
+# Reader Vault
 
 Mobile + web app for saving and reading long-form text offline. Built with Capacitor (iOS/Android) and Vite.
 
@@ -32,4 +32,4 @@ npx cap open ios      # or android
 
 ---
 
-Made by [EERIE](https://linktr.ee/eeriegoesd) · [Buy Me a Coffee](https://buymeacoffee.com/eeriegoesd)
+Made by [EERIE](https://eeriegoesd.com/) · [Buy Me a Coffee](https://buymeacoffee.com/eeriegoesd)

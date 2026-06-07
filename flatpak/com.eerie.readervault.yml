@@ -1,10 +1,10 @@
-id: com.eerie.readervaultpro
+id: com.eerie.readervault
 runtime: org.freedesktop.Platform
 runtime-version: "24.08"
 sdk: org.freedesktop.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.node22
-command: reader-vault-pro
+command: reader-vault
 separate-locales: false
 finish-args:
   - --socket=wayland
@@ -35,7 +35,7 @@ modules:
         dest: .
 
   # Build app (sharp must compile against /app libvips)
-  - name: reader-vault-pro
+  - name: reader-vault
     buildsystem: simple
     cleanup:
       - /main/node_modules/.cache
@@ -53,8 +53,8 @@ modules:
     build-options:
       append-path: /usr/lib/sdk/node22/bin
       env:
-        XDG_CACHE_HOME: /run/build/reader-vault-pro/flatpak-node/cache
-        npm_config_cache: /run/build/reader-vault-pro/flatpak-node/npm-cache
+        XDG_CACHE_HOME: /run/build/reader-vault/flatpak-node/cache
+        npm_config_cache: /run/build/reader-vault/flatpak-node/npm-cache
         PKG_CONFIG_PATH: /app/lib64/pkgconfig:/app/lib/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
         LD_LIBRARY_PATH: /app/lib64:/app/lib
         npm_config_nodedir: /usr/lib/sdk/node22
@@ -65,7 +65,7 @@ modules:
         npm_config_fund: "false"
         npm_config_update_notifier: "false"
     build-commands:
-      - mkdir -p /run/build/reader-vault-pro/flatpak-node/npm-cache
+      - mkdir -p /run/build/reader-vault/flatpak-node/npm-cache
       - pkg-config --modversion vips-cpp
       - pkg-config --cflags --libs vips-cpp
       - |
@@ -83,11 +83,11 @@ modules:
       - if [ -f main.js ]; then install -Dm644 main.js /app/main/main.js; fi
       - install -Dm644 package.json /app/main/package.json
       - if [ -f package-lock.json ]; then install -Dm644 package-lock.json /app/main/package-lock.json; fi
-      - install -Dm755 flatpak/reader-vault-pro.sh /app/bin/reader-vault-pro
-      - test -x /app/bin/reader-vault-pro
-      - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervaultpro.png
-      - install -Dm644 flatpak/com.eerie.readervaultpro.desktop /app/share/applications/com.eerie.readervaultpro.desktop
-      - install -Dm644 flatpak/com.eerie.readervaultpro.metainfo.xml /app/share/metainfo/com.eerie.readervaultpro.metainfo.xml
+      - install -Dm755 flatpak/reader-vault.sh /app/bin/reader-vault
+      - test -x /app/bin/reader-vault
+      - install -Dm644 assets/icon-512.png /app/share/icons/hicolor/512x512/apps/com.eerie.readervault.png
+      - install -Dm644 flatpak/com.eerie.readervault.desktop /app/share/applications/com.eerie.readervault.desktop
+      - install -Dm644 flatpak/com.eerie.readervault.metainfo.xml /app/share/metainfo/com.eerie.readervault.metainfo.xml
     sources:
       - type: git
         url: https://github.com/EerieGoesD/game-guide-manager.git
