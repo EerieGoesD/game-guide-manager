@@ -10,7 +10,9 @@ coverage/
 
 # --- Electron build output ---
 release/
+release-*/
 out/
+win-unpacked/
 *.exe
 *.dmg
 *.AppImage
@@ -18,6 +20,11 @@ out/
 *.rpm
 *.snap
 *.zip
+*.appx
+*.appxbundle
+*.msix
+*.msixbundle
+*.blockmap
 
 # --- Capacitor native builds (recommended to ignore) ---
 android/.gradle/
