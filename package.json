@@ -3,7 +3,8 @@
   "version": "1.1.2",
   "private": true,
   "author": "EERIE",
-  "description": "Cross-platform reader and library (Electron + Capacitor) with local storage and URL loading",  "main": "electron/main.cjs",
+  "description": "Cross-platform reader and library (Electron + Capacitor) with local storage and URL loading",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -18,13 +19,16 @@
     "cap:open:ios": "cap open ios"
   },
   "dependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
     "@capacitor/android": "^8.1.0",
+    "@capacitor/clipboard": "^8.0.1",
     "@capacitor/core": "^8.1.0",
     "@capacitor/filesystem": "^8.1.0",
     "@capacitor/ios": "^8.1.0",
     "@capacitor/share": "^8.0.1",
     "@capacitor/status-bar": "^8.0.1",
     "@capgo/capacitor-file-picker": "^8.1.2",
+    "@capgo/native-purchases": "^8.4.6",
     "axios": "^1.6.2",
     "pako": "^2.1.0",
     "pdfjs-dist": "^5.4.624"
@@ -55,7 +59,9 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "target": ["appx"]
+      "target": [
+        "appx"
+      ]
     },
     "appx": {
       "identityName": "20715EerieGoesD.ReaderVault",
@@ -67,7 +73,10 @@
     "linux": {
       "icon": "build/icon.png",
       "category": "Utility",
-      "target": ["AppImage", "deb"]
+      "target": [
+        "AppImage",
+        "deb"
+      ]
     }
   },
   "overrides": {

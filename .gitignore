@@ -74,3 +74,9 @@ flatpak/repo/
 *.ostree
 
 .flatpak-builder/
+
+# --- Signing secrets (NEVER commit) ---
+keystore.properties
+*.jks
+*.keystore
+upload_certificate.pem

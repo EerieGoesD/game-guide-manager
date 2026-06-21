@@ -7,6 +7,9 @@ import { extractTextFromPdfArrayBuffer } from './pdfToText.js';
 import { Capacitor } from '@capacitor/core';
 import { StatusBar } from '@capacitor/status-bar';
 import { CapgoFilePicker as FilePicker } from '@capgo/capacitor-file-picker';
+import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
+import { Clipboard } from '@capacitor/clipboard';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 
 // Viewport fix
 function resetViewport() {
@@ -40,6 +43,48 @@ let findIndex = -1;
 // Import state (backup)
 let pendingImport = null;
 
+/* Freemium: free tier stores 1 guide; unlock unlimited via a one-time IAP.
+   Active on native Android/iOS only. Desktop (Electron) and web stay unlimited. */
+const FREE_GUIDE_LIMIT = 1;
+const UNLOCK_KEY = 'rv_unlocked';
+// Must match the one-time product ID you create in Google Play Console (and App Store Connect).
+const UNLOCK_PRODUCT_ID = 'unlock_unlimited';
+
+function paywallActive() {
+  // True only on native Android/iOS; false on web and Electron desktop.
+  return Capacitor?.isNativePlatform?.() === true;
+}
+function isUnlocked() {
+  return localStorage.getItem(UNLOCK_KEY) === '1';
+}
+function setUnlocked(on) {
+  if (on) localStorage.setItem(UNLOCK_KEY, '1');
+  else localStorage.removeItem(UNLOCK_KEY);
+}
+function freeLimitReached(currentCount) {
+  return paywallActive() && !isUnlocked() && currentCount >= FREE_GUIDE_LIMIT;
+}
+function wouldExceedFreeLimit(resultingTotal) {
+  return paywallActive() && !isUnlocked() && resultingTotal > FREE_GUIDE_LIMIT;
+}
+
+// Clipboard: native Android/iOS WebView blocks navigator.clipboard, so use the
+// Capacitor plugin there and fall back to the web API on desktop/web.
+async function readClipboardText() {
+  if (Capacitor?.isNativePlatform?.()) {
+    const { value } = await Clipboard.read();
+    return value || '';
+  }
+  return await navigator.clipboard.readText();
+}
+async function writeClipboardText(text) {
+  if (Capacitor?.isNativePlatform?.()) {
+    await Clipboard.write({ string: text });
+    return;
+  }
+  await navigator.clipboard.writeText(text);
+}
+
 // Selection mode
 let selectMode = false;
 let selectedGuideIds = new Set();
@@ -57,6 +102,7 @@ let readerLineHeight = (() => { const v = parseFloat(localStorage.getItem('reade
 let speechChunks = [];
 let speechIndex = 0;
 let isSpeaking = false;
+let speakSession = 0; // guards against stale native-speak completions re-toggling the UI
 
 // Bookmarks for the open guide
 let currentBookmarks = [];
@@ -77,8 +123,8 @@ const scrollStyle = document.createElement('style');
 scrollStyle.textContent = `
   .reader-scroll-btns {
     position: fixed;
-    right: 80px;
-    bottom: 80px;
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -360,15 +406,15 @@ app.innerHTML = `
     </div>
 
     <div id="readerScreen" class="screen">
-      <div class="button-group" id="readerButtonGroup">
-        <button id="backToGuides" type="button">← Back</button>
-        <button class="secondary btn-fixed-width" id="btnFullscreen" type="button">⛶ Fullscreen</button>
-        <button class="secondary btn-fixed-width" id="btnDisplay" type="button">🔡 Text Size</button>
-        <button class="secondary btn-fixed-width" id="btnSpeak" type="button">🔊 Listen</button>
-        <button class="secondary btn-fixed-width" id="btnBookmarks" type="button">🔖 Bookmarks</button>
-        <button class="secondary btn-fixed-width" id="btnTheme" type="button">🎨 Theme</button>
-        <button class="secondary" id="btnWordColors" type="button">🖍️ Colors</button>
-        <button class="danger" id="btnDelete" type="button">🗑️ Delete</button>
+      <div class="button-group reader-toolbar" id="readerButtonGroup">
+        <button class="reader-icon-btn" id="backToGuides" type="button" title="Back">←</button>
+        <button class="secondary reader-icon-btn" id="btnFullscreen" type="button" title="Fullscreen">⛶</button>
+        <button class="secondary reader-icon-btn" id="btnDisplay" type="button" title="Text Size">🔡</button>
+        <button class="secondary reader-icon-btn" id="btnSpeak" type="button" title="Listen">🔊</button>
+        <button class="secondary reader-icon-btn" id="btnBookmarks" type="button" title="Bookmarks">🔖</button>
+        <button class="secondary reader-icon-btn" id="btnTheme" type="button" title="Theme">🎨</button>
+        <button class="secondary reader-icon-btn" id="btnWordColors" type="button" title="Colors">🖍️</button>
+        <button class="danger reader-icon-btn" id="btnDelete" type="button" title="Delete">🗑️</button>
       </div>
 
       <div class="reader-container" id="readerContainer">
@@ -605,6 +651,60 @@ function themedConfirm({ title = 'Confirm', message = '', okText = 'OK', cancelT
     document.addEventListener('keydown', onKey, true);
     setTimeout(() => btnOk.focus(), 0);
   });
+}
+
+/* Freemium paywall */
+async function promptPaywall() {
+  const ok = await themedConfirm({
+    title: 'Unlock unlimited guides',
+    message: 'The free version keeps 1 saved guide. Unlock unlimited guides forever for a one-time €2.99.',
+    okText: 'Unlock for €2.99',
+    cancelText: 'Not now'
+  });
+  if (ok) await purchaseUnlock();
+  return ok;
+}
+
+async function purchaseUnlock() {
+  if (!paywallActive()) return;
+  try {
+    const tx = await NativePurchases.purchaseProduct({
+      productIdentifier: UNLOCK_PRODUCT_ID,
+      productType: PURCHASE_TYPE.INAPP
+    });
+    // Android reports purchaseState "1" when purchased; iOS leaves it undefined on success.
+    const purchased = tx && tx.productIdentifier === UNLOCK_PRODUCT_ID &&
+      (tx.purchaseState === undefined || tx.purchaseState === '1');
+    if (purchased) {
+      setUnlocked(true);
+      await updateGuideCount();
+      showToast('Unlocked', 'Unlimited guides unlocked. Thank you!');
+    } else {
+      showToast('Purchase pending', 'Your purchase is still processing.');
+    }
+  } catch (e) {
+    const msg = String(e?.message || e);
+    showToast('Purchase not completed', msg.slice(0, 140));
+  }
+}
+
+// Re-check the store on launch so a prior purchase unlocks after reinstall / new device.
+async function refreshEntitlement() {
+  if (!paywallActive() || isUnlocked()) return;
+  try {
+    const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP });
+    const owned = Array.isArray(purchases) && purchases.some(p =>
+      p.productIdentifier === UNLOCK_PRODUCT_ID &&
+      (p.purchaseState === undefined || p.purchaseState === '1'));
+    if (owned) {
+      setUnlocked(true);
+      await updateGuideCount();
+    }
+    // Never auto-clear the local unlock here: a transient query failure must not re-lock
+    // a paying user. Refund/revocation handling would need server-side verification.
+  } catch {
+    // keep cached entitlement; ignore transient billing errors
+  }
 }
 
 /* Screen management */
@@ -860,7 +960,7 @@ if (!result) throw new Error(`Upload failed for batch ${i + 1}:\n${hostErrors.jo
     document.getElementById('generatedLinkBox').value = links.join('\n');
     document.getElementById('generatedLinkSection').style.display = 'block';
 
-    try { await navigator.clipboard.writeText(links.join('\n')); } catch {}
+    try { await writeClipboardText(links.join('\n')); } catch {}
 
     lastBackupMeta = {
       createdAt: new Date().toLocaleString(),
@@ -929,6 +1029,10 @@ async function importReplaceAll() {
     wordColors: g.wordColors || {},
     bookmarks: Array.isArray(g.bookmarks) ? g.bookmarks : []
   }));
+  if (wouldExceedFreeLimit(imported.length)) {
+    await promptPaywall();
+    return;
+  }
   await bridge.writeGuides(imported);
   showToast('Imported', `Imported ${imported.length} guides`);
   await updateGuideCount();
@@ -959,6 +1063,10 @@ async function importMergeKeepCurrent() {
     return obj;
   });
   const merged = current.concat(imported);
+  if (wouldExceedFreeLimit(merged.length)) {
+    await promptPaywall();
+    return;
+  }
   await bridge.writeGuides(merged);
   showToast('Imported', `Imported ${imported.length} guides (merged)`);
   await updateGuideCount();
@@ -1281,6 +1389,11 @@ async function finalSaveGuide() {
   if (!content) return alert('Content is empty.');
 
 const guides = await bridge.readGuides();
+
+  if (freeLimitReached(guides.length)) {
+    await promptPaywall();
+    return;
+  }
 
     guides.push({
     id: Date.now(),
@@ -1668,13 +1781,14 @@ function resetReaderStyle() {
 
 /* Read-aloud (TTS) */
 function ttsSupported() {
+  if (Capacitor?.isNativePlatform?.()) return true; // native OS TTS via the plugin
   return typeof window !== 'undefined' && 'speechSynthesis' in window && typeof SpeechSynthesisUtterance !== 'undefined';
 }
 
-function chunkTextForSpeech(text) {
+function chunkTextForSpeech(text, limit = 200) {
   const clean = (text || '').replace(/\s+/g, ' ').trim();
   if (!clean) return [];
-  const LIMIT = 200;
+  const LIMIT = limit;
   const parts = clean.match(/[^.!?]+[.!?]*\s*/g) || [clean];
   const chunks = [];
   let buf = '';
@@ -1697,7 +1811,7 @@ function chunkTextForSpeech(text) {
 
 function updateSpeakButtons() {
   const main = document.getElementById('btnSpeak');
-  if (main) main.textContent = isSpeaking ? '⏹ Stop' : '🔊 Listen';
+  if (main) main.textContent = isSpeaking ? '⏹' : '🔊';
   const inline = document.getElementById('btnSpeakInline');
   if (inline) inline.textContent = isSpeaking ? '⏹' : '🔊';
 }
@@ -1711,12 +1825,40 @@ function speakNext() {
   try { window.speechSynthesis.speak(u); } catch { stopSpeak(); }
 }
 
-function startSpeak() {
+async function startSpeak() {
   if (!ttsSupported()) {
     showToast('Not supported', 'Read-aloud is unavailable on this device.');
     return;
   }
   const text = document.getElementById('readerContent').textContent || '';
+  if (!text.trim()) {
+    showToast('Nothing to read', 'This guide has no text.');
+    return;
+  }
+
+  // Native Android/iOS: use the OS text-to-speech engine (the Android WebView has no
+  // Web Speech API, so window.speechSynthesis is unavailable there).
+  if (Capacitor?.isNativePlatform?.()) {
+    const session = ++speakSession;
+    // Android TTS rejects text longer than ~4000 chars, so speak it in chunks.
+    const chunks = chunkTextForSpeech(text, 3000);
+    isSpeaking = true;
+    updateSpeakButtons();
+    try { await TextToSpeech.stop(); } catch {}
+    for (const chunk of chunks) {
+      if (session !== speakSession || !isSpeaking) break;
+      try {
+        await TextToSpeech.speak({ text: chunk, rate: 1.0 });
+      } catch (e) {
+        showToast('Read-aloud error', String(e?.message || e).slice(0, 140));
+        break;
+      }
+    }
+    if (session === speakSession) { isSpeaking = false; updateSpeakButtons(); }
+    return;
+  }
+
+  // Web/desktop: Web Speech API with chunking.
   speechChunks = chunkTextForSpeech(text);
   if (!speechChunks.length) {
     showToast('Nothing to read', 'This guide has no text.');
@@ -1730,10 +1872,15 @@ function startSpeak() {
 }
 
 function stopSpeak() {
+  speakSession++;
   isSpeaking = false;
   speechChunks = [];
   speechIndex = 0;
-  if (ttsSupported()) { try { window.speechSynthesis.cancel(); } catch {} }
+  if (Capacitor?.isNativePlatform?.()) {
+    try { TextToSpeech.stop(); } catch {}
+  } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try { window.speechSynthesis.cancel(); } catch {}
+  }
   updateSpeakButtons();
 }
 
@@ -2044,7 +2191,7 @@ document.getElementById('btnDeleteSelected').addEventListener('click', deleteSel
 
 document.getElementById('btnLoadFile').addEventListener('click', async () => {
   try {
-    if (Capacitor?.isNativePlatform?.() && Capacitor.getPlatform() === 'ios') {
+    if (Capacitor?.isNativePlatform?.()) { // Android + iOS use the native picker
       await pickFileNative();
       return;
     }
@@ -2063,7 +2210,7 @@ document.getElementById('btnUrlLoad').addEventListener('click', loadFromUrl);
 
 document.getElementById('btnUrlPaste').addEventListener('click', async () => {
   try {
-    const text = await navigator.clipboard.readText();
+    const text = await readClipboardText();
     if (text) document.getElementById('urlInput').value = text.trim();
   } catch (e) {
     showToast('Error', 'Could not access clipboard');
@@ -2199,7 +2346,7 @@ document.getElementById('btnGenerateLink').addEventListener('click', generateSha
 document.getElementById('btnImportFromLink').addEventListener('click', importFromLink);
 document.getElementById('btnCopyLink').addEventListener('click', () => {
   const val = document.getElementById('generatedLinkBox')?.value;
-  if (val) navigator.clipboard.writeText(val).then(() => showToast('Copied', 'All links copied'));
+  if (val) writeClipboardText(val).then(() => showToast('Copied', 'All links copied')).catch(() => {});
 });
 
 document.getElementById('btnClearImport').addEventListener('click', clearImportUI);
@@ -2209,6 +2356,7 @@ document.getElementById('btnImportMerge').addEventListener('click', importMergeK
 
 setTab('export');
 updateGuideCount();
+refreshEntitlement();
 document.getElementById('librarySortSelect').value = librarySort;
 
 window.addEventListener('resize', resetViewport);

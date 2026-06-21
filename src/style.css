@@ -202,7 +202,16 @@ body.fullscreen .reader-container {
   z-index: 9999;
 }
 
-body.fullscreen .reader-header { top: 0; }
+body.fullscreen .reader-header {
+  top: 0;
+  /* Push header content (title + exit button) below the status bar on edge-to-edge
+     Android/iOS, so it does not collide with the system icons. */
+  padding-top: calc(20px + env(safe-area-inset-top, 0px));
+}
+
+/* Row 2 (action buttons) wraps onto more lines if they don't all fit, so every
+   control - including the exit X - stays on screen on narrow phones. */
+body.fullscreen .reader-header-actions { flex-wrap: wrap; }
 
 body.fullscreen .reader-content {
   max-height: none;
@@ -546,9 +555,10 @@ input[type="range"] {
 /* Fullscreen header actions (no overlap with progress bar) */
 .reader-header-top {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;   /* title on row 1, action buttons on row 2 */
+  align-items: stretch;
   gap: 10px;
+  margin-bottom: 12px;      /* space between the header row and the progress bar */
 }
 
 .reader-header-actions {
@@ -562,19 +572,30 @@ input[type="range"] {
   padding: 6px 10px;
   min-width: 40px;
   line-height: 1;
+  /* Kill the base button's margin-right/bottom so every icon button aligns the same
+     in flex+gap rows (the leftover margin was shifting the others up vs the X). */
+  margin: 0;
 }
+
+/* Compact icon toolbar for the (non-fullscreen) reader screen: one wrapping row of
+   equal icon buttons instead of 8 big labelled buttons stacking into 4 rows. */
+.reader-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.reader-toolbar > button { margin: 0; }
 
 /* Exit fullscreen button: small, non-floating (assumes it is placed in header actions by main.js) */
 .fullscreen-exit-btn {
-  position: static !important;
-  top: auto !important;
-  right: auto !important;
+  /* Match the other reader-icon-btn siblings so the X lines up in the row. */
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px !important;
-  font-size: 14px !important;
-  font-weight: 700 !important;
-  border-radius: 10px;
-  margin: 0 !important;
+  min-width: 40px;
+  padding: 6px 10px;
+  line-height: 1;
+  font-weight: 700;
+  margin: 0;
 }
