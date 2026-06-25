@@ -160,7 +160,7 @@ label { display: block; color: #66c0f4; margin-bottom: 5px; font-weight: bold; f
 .progress-bar-container { background: #1b2838; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 10px; }
 .progress-bar-fill { background: #66c0f4; height: 100%; transition: width 0.2s; }
 
-.reader-container { background: #2a475e; border: 2px solid #417a9b; border-radius: 8px; padding: 0; }
+.reader-container { background: #2a475e; border: 2px solid #417a9b; border-radius: 8px; padding: 0; position: relative; }
 
 /* Sticky header should respect safe area at top */
 .reader-header {
@@ -185,7 +185,10 @@ label { display: block; color: #66c0f4; margin-bottom: 5px; font-weight: bold; f
   line-height: 1.8;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-height: 70vh;
+  /* Fill the window minus the chrome above (toolbar + header + body padding) so the
+     content scrolls INSIDE the window and its bottom never runs past the taskbar.
+     Fullscreen overrides this below. */
+  max-height: calc(100dvh - 220px);
   overflow-y: auto;
 }
 
@@ -200,6 +203,8 @@ body.fullscreen .reader-container {
   border: none;
   border-radius: 0;
   z-index: 9999;
+  display: flex;
+  flex-direction: column;
 }
 
 body.fullscreen .reader-header {
@@ -215,7 +220,11 @@ body.fullscreen .reader-header-actions { flex-wrap: wrap; }
 
 body.fullscreen .reader-content {
   max-height: none;
-  height: calc(100vh - 100px);
+  /* Fill the space left after the header (which varies in height because the action
+     buttons row shows in fullscreen) and scroll inside, so the bottom never runs past
+     the screen/taskbar. No hardcoded header height. */
+  flex: 1 1 0;
+  min-height: 0;
   padding: 40px;
   padding-top: calc(40px + env(safe-area-inset-top, 0px));
   padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px));
@@ -278,6 +287,9 @@ body.fullscreen .reader-content {
 /* Support / donation link stays yellow */
 .footer-coffee { color: #facc15 !important; font-weight: 700; }
 .footer-coffee:hover { color: #facc15 !important; text-decoration: underline; }
+
+/* App version line at the bottom of the main menu */
+.app-version { margin-top: 12px; font-size: 12px; color: #8b929a; opacity: 0.85; }
 
 /* Toast */
 .toast {

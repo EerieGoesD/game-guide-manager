@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "import-window",
+  "description": "Lets the interactive-import window (which loads arbitrary external pages) send scraped text back via submit_imported_text. The only command exposed to remote pages is submit_imported_text, which just hands a string to the app.",
+  "windows": ["import"],
+  "remote": {
+    "urls": [
+      "https://gamefaqs.gamespot.com/**",
+      "https://*.gamespot.com/**",
+      "http://*/**",
+      "https://*/**"
+    ]
+  },
+  "permissions": ["core:default", "core:event:allow-emit"]
+}

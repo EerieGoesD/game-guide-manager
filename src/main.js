@@ -10,6 +10,7 @@ import { CapgoFilePicker as FilePicker } from '@capgo/capacitor-file-picker';
 import { NativePurchases, PURCHASE_TYPE } from '@capgo/native-purchases';
 import { Clipboard } from '@capacitor/clipboard';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
+import pkg from '../package.json';
 
 // Viewport fix
 function resetViewport() {
@@ -45,14 +46,20 @@ let pendingImport = null;
 
 /* Freemium: free tier stores 1 guide; unlock unlimited via a one-time IAP.
    Active on native Android/iOS only. Desktop (Electron) and web stay unlimited. */
-const FREE_GUIDE_LIMIT = 1;
+const FREE_GUIDE_LIMIT = 2;
 const UNLOCK_KEY = 'rv_unlocked';
 // Must match the one-time product ID you create in Google Play Console (and App Store Connect).
 const UNLOCK_PRODUCT_ID = 'unlock_unlimited';
+// Microsoft Store ID of the durable "Unlimited Library" add-on (Windows desktop only).
+const UNLOCK_STORE_ID = '9PC7BB3GZBKR';
 
+function isTauri() {
+  return typeof window !== 'undefined' && !!window.__TAURI_INTERNALS__;
+}
 function paywallActive() {
-  // True only on native Android/iOS; false on web and Electron desktop.
-  return Capacitor?.isNativePlatform?.() === true;
+  // Gate on native Android/iOS (Google Play / App Store) and on Windows desktop
+  // (Microsoft Store, via Tauri). Plain web/dev stays unlimited.
+  return Capacitor?.isNativePlatform?.() === true || isTauri();
 }
 function isUnlocked() {
   return localStorage.getItem(UNLOCK_KEY) === '1';
@@ -122,9 +129,9 @@ const PRIVATEBIN_HOSTS = [
 const scrollStyle = document.createElement('style');
 scrollStyle.textContent = `
   .reader-scroll-btns {
-    position: fixed;
-    right: calc(16px + env(safe-area-inset-right, 0px));
-    bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    position: absolute;
+    right: 26px;
+    bottom: 24px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -170,9 +177,6 @@ app.innerHTML = `
         </div>
       </div>
 
-      <p class="help-text">        Platform: <strong id="platformLabel"></strong>
-      </p>
-
       <div class="footer">
         <div class="footer-line">
           Made by <a class="footer-eerie" href="https://eeriegoesd.com/" target="_blank" rel="noreferrer">EERIE</a>
@@ -183,6 +187,7 @@ app.innerHTML = `
           <a href="https://github.com/EerieGoesD/reader-vault/discussions" target="_blank" rel="noreferrer">Feedback</a>
         </div>
         <a class="footer-coffee" href="https://buymeacoffee.com/eeriegoesd" target="_blank" rel="noreferrer">Support This Project</a>
+        <div class="app-version" id="appVersion"></div>
       </div>
     </div>
 
@@ -552,7 +557,10 @@ const isIOS =
 
 fileInput.accept = 'application/pdf,text/plain,.pdf,.txt';
 
-document.getElementById('platformLabel').textContent = bridge.platform || 'unknown';
+{
+  const appVersionEl = document.getElementById('appVersion');
+  if (appVersionEl) appVersionEl.textContent = `v${pkg.version}`;
+}
 
 /* Support modal */
 let supportKeyHandler = null;
@@ -657,7 +665,7 @@ function themedConfirm({ title = 'Confirm', message = '', okText = 'OK', cancelT
 async function promptPaywall() {
   const ok = await themedConfirm({
     title: 'Unlock unlimited guides',
-    message: 'The free version keeps 1 saved guide. Unlock unlimited guides forever for a one-time €2.99.',
+    message: 'The free version keeps 2 saved guides. Unlock unlimited guides forever for a one-time €2.99.',
     okText: 'Unlock for €2.99',
     cancelText: 'Not now'
   });
@@ -667,6 +675,7 @@ async function promptPaywall() {
 
 async function purchaseUnlock() {
   if (!paywallActive()) return;
+  if (isTauri()) { await purchaseUnlockTauri(); return; }
   try {
     const tx = await NativePurchases.purchaseProduct({
       productIdentifier: UNLOCK_PRODUCT_ID,
@@ -688,9 +697,45 @@ async function purchaseUnlock() {
   }
 }
 
+// Windows desktop: buy the durable add-on through the Microsoft Store.
+async function purchaseUnlockTauri() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const res = await invoke('store_purchase', { storeId: UNLOCK_STORE_ID });
+    if (res === 'owned') {
+      setUnlocked(true);
+      await updateGuideCount();
+      showToast('Unlocked', 'Unlimited guides unlocked. Thank you!');
+    } else if (res === 'cancelled') {
+      // User closed the Store dialog - stay quiet.
+    } else {
+      showToast('Purchase pending', 'Your purchase is still processing.');
+    }
+  } catch (e) {
+    const msg = String(e?.message || e);
+    showToast('Purchase not completed', msg.slice(0, 140));
+  }
+}
+
+// Windows desktop: re-check the Microsoft Store license on launch.
+async function refreshEntitlementTauri() {
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    const owned = await invoke('store_is_owned', { productId: UNLOCK_PRODUCT_ID });
+    if (owned === true) {
+      setUnlocked(true);
+      await updateGuideCount();
+    }
+    // Never auto-clear a cached unlock on a transient failure.
+  } catch {
+    // ignore transient store errors; keep cached entitlement
+  }
+}
+
 // Re-check the store on launch so a prior purchase unlocks after reinstall / new device.
 async function refreshEntitlement() {
   if (!paywallActive() || isUnlocked()) return;
+  if (isTauri()) { await refreshEntitlementTauri(); return; }
   try {
     const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP });
     const owned = Array.isArray(purchases) && purchases.some(p =>
@@ -1271,7 +1316,8 @@ function openPreview() {
 function updatePreviewProgress() {
   const c = document.getElementById('previewContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
-  const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
+  const raw = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
+  const progress = Math.max(0, Math.min(100, raw));
   setPreviewProgressUI(progress);
 }
 
@@ -1494,6 +1540,9 @@ async function openGuide(id) {
     const maxScroll = c.scrollHeight - c.clientHeight;
     const scrollPos = (guide.progress / 100) * Math.max(0, maxScroll);
     c.scrollTop = scrollPos;
+    // Recompute now that content is laid out, so a guide that fits on screen (no
+    // scrolling needed) reads 100% instead of staying at the saved 0%.
+    updateReadingProgress();
   }, 50);
 }
 
@@ -1521,7 +1570,8 @@ async function updateReadingProgress() {
   if (currentGuideId == null) return;
   const c = document.getElementById('readerContent');
   const maxScroll = c.scrollHeight - c.clientHeight;
-  const progress = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
+  const raw = maxScroll > 0 ? Math.round((c.scrollTop / maxScroll) * 100) : 100;
+  const progress = Math.max(0, Math.min(100, raw));
   setProgressUI(progress);
 
   const now = Date.now();

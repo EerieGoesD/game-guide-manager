@@ -1,6 +1,7 @@
 // C:\Users\eerie\Documents\GitHub\game-guide-manager\src\bridge.js
 import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { invoke } from '@tauri-apps/api/core';
 
 const GUIDES_FILE = 'guides.json';
 const InteractiveImport = registerPlugin('InteractiveImport');
@@ -24,11 +25,63 @@ export function getBridge() {
     return window.GuideBridge;
   }
 
+  // Tauri 2 desktop (Rust backend commands)
+  if (typeof window !== 'undefined' && window.__TAURI_INTERNALS__) {
+    return tauriBridge();
+  }
+
   if (Capacitor?.isNativePlatform?.()) {
     return capacitorBridge();
   }
 
   return webBridge();
+}
+
+function tauriBridge() {
+  return {
+    platform: 'tauri',
+
+    async fetchUrl(url) {
+      return await invoke('fetch_url', { url });
+    },
+
+    // Interactive import: open the page in a real window (passes bot protection like
+    // GameFAQs), user clicks Import, the scraped text comes back via an event.
+    async fetchUrlBrowser(url) {
+      const { listen } = await import('@tauri-apps/api/event');
+      return await new Promise((resolve, reject) => {
+        let unlisten = null;
+        const timer = setTimeout(() => {
+          if (unlisten) unlisten();
+          reject(new Error('Timed out waiting for import.'));
+        }, 180000);
+        listen('imported-text', (e) => {
+          clearTimeout(timer);
+          if (unlisten) unlisten();
+          invoke('close_import_window').catch(() => {});
+          const text = String(e?.payload || '');
+          if (!text.trim()) reject(new Error('Import returned empty content.'));
+          else resolve(text);
+        }).then((u) => {
+          unlisten = u;
+          invoke('open_import_window', { url }).catch((err) => {
+            clearTimeout(timer);
+            if (unlisten) unlisten();
+            reject(err);
+          });
+        });
+      });
+    },
+
+    async readGuides() {
+      const v = await invoke('read_guides');
+      return Array.isArray(v) ? v : [];
+    },
+
+    async writeGuides(guides) {
+      await invoke('write_guides', { guides });
+    }
+  };
 }
 
 function capacitorBridge() {
