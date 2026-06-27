@@ -132,7 +132,8 @@ scrollStyle.textContent = `
     position: absolute;
     right: 26px;
     bottom: 24px;
-    display: flex;
+    /* Hidden by default; JS reveals it only when the guide is long enough to scroll. */
+    display: none;
     flex-direction: column;
     gap: 8px;
     z-index: 100;
@@ -664,7 +665,7 @@ function themedConfirm({ title = 'Confirm', message = '', okText = 'OK', cancelT
 /* Freemium paywall */
 async function promptPaywall() {
   const ok = await themedConfirm({
-    title: 'Unlock unlimited guides',
+    title: 'Unlock Unlimited Guides',
     message: 'The free version keeps 2 saved guides. Unlock unlimited guides forever for a one-time €2.99.',
     okText: 'Unlock for €2.99',
     cancelText: 'Not now'
@@ -761,6 +762,9 @@ async function showScreen(screenId) {
   if (screenId === 'savedScreen') {
     await loadSavedGuides();
     updateSelectDeleteUI();
+    // Size the sort dropdown once the screen is actually visible (it can't be
+    // measured while hidden), so the arrow hugs the selected text.
+    requestAnimationFrame(() => fitSelectToContent(document.getElementById('librarySortSelect')));
   }
   if (screenId === 'previewScreen') setPreviewProgressUI(0);
   if (screenId === 'ioScreen') await refreshExportMetaOnly();
@@ -1543,6 +1547,7 @@ async function openGuide(id) {
     // Recompute now that content is laid out, so a guide that fits on screen (no
     // scrolling needed) reads 100% instead of staying at the saved 0%.
     updateReadingProgress();
+    updateScrollButtonsVisibility();
   }, 50);
 }
 
@@ -1565,6 +1570,16 @@ function applyWordHighlights(content) {
 
 let lastPersist = 0;
 let pendingPersist = null;
+
+// Show the up/down scroll arrows only when the guide is taller than the view
+// (i.e. there is actually a scrollbar). A short guide has nothing to scroll.
+function updateScrollButtonsVisibility() {
+  const c = document.getElementById('readerContent');
+  const btns = document.querySelector('.reader-scroll-btns');
+  if (!c || !btns) return;
+  const overflows = c.scrollHeight - c.clientHeight > 4;
+  btns.style.display = overflows ? 'flex' : 'none';
+}
 
 async function updateReadingProgress() {
   if (currentGuideId == null) return;
@@ -1660,6 +1675,8 @@ function enterFullscreen() {
   // Hide external controls (they get covered by the fixed reader container anyway)
   const buttonGroup = document.getElementById('readerButtonGroup');
   if (buttonGroup) buttonGroup.style.display = 'none';
+
+  updateScrollButtonsVisibility();
 }
 
 function exitFullscreen() {
@@ -1671,6 +1688,8 @@ function exitFullscreen() {
 
   const buttonGroup = document.getElementById('readerButtonGroup');
   if (buttonGroup) buttonGroup.style.display = '';
+
+  updateScrollButtonsVisibility();
 }
 
 /* Theme */
@@ -1782,6 +1801,7 @@ function commitReaderStyleChange() {
   applyReaderTextStyle();
   const maxAfter = c.scrollHeight - c.clientHeight;
   c.scrollTop = frac * Math.max(0, maxAfter);
+  updateScrollButtonsVisibility();
 }
 
 function updateReaderSettingsLabels() {
@@ -2321,14 +2341,46 @@ document.getElementById('librarySearchInput').addEventListener('input', (e) => {
   librarySearch = e.target.value || '';
   loadSavedGuides();
 });
+// Native dropdowns size to their widest option, so a short choice like
+// "Recently added" leaves a gap before the arrow. Shrink the box to fit the
+// option that is actually showing, so the arrow sits right after the text.
+function fitSelectToContent(select) {
+  if (!select) return;
+  try {
+    const opt = select.options[select.selectedIndex];
+    if (!opt) return;
+    const cs = getComputedStyle(select);
+    // Measure the selected text with a real rendered span (works even before the
+    // select itself is visible, unlike canvas in some cases).
+    const span = document.createElement('span');
+    span.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;top:-9999px;left:-9999px;';
+    span.style.fontFamily = cs.fontFamily;
+    span.style.fontSize = cs.fontSize;
+    span.style.fontWeight = cs.fontWeight;
+    span.style.letterSpacing = cs.letterSpacing;
+    span.textContent = opt.text;
+    document.body.appendChild(span);
+    const textW = span.getBoundingClientRect().width;
+    document.body.removeChild(span);
+    if (!textW) return;
+    const padL = parseFloat(cs.paddingLeft) || 0;   // text gap on the left
+    const padR = parseFloat(cs.paddingRight) || 0;  // holds the chevron + its gap
+    const border = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.borderRightWidth) || 0);
+    // box-sizing is border-box, so total width = text + paddings + borders.
+    select.style.width = Math.ceil(textW + padL + padR + border + 2) + 'px';
+  } catch {}
+}
+
 document.getElementById('librarySortSelect').addEventListener('change', (e) => {
   librarySort = e.target.value || 'recent';
   localStorage.setItem('librarySort', librarySort);
+  fitSelectToContent(e.target);
   loadSavedGuides();
 });
 
 document.getElementById('previewContent').addEventListener('scroll', updatePreviewProgress);
 document.getElementById('readerContent').addEventListener('scroll', updateReadingProgress);
+window.addEventListener('resize', updateScrollButtonsVisibility);
 
 document.getElementById('btnScrollUp').addEventListener('click', () => {
   document.getElementById('readerContent').scrollBy({ top: -200, behavior: 'smooth' });
@@ -2408,6 +2460,7 @@ setTab('export');
 updateGuideCount();
 refreshEntitlement();
 document.getElementById('librarySortSelect').value = librarySort;
+fitSelectToContent(document.getElementById('librarySortSelect'));
 
 window.addEventListener('resize', resetViewport);
 window.addEventListener('orientationchange', () => {

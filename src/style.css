@@ -528,15 +528,24 @@ input[type="range"] {
 }
 .library-controls input[type="text"] { flex: 1 1 240px; margin: 0; }
 .library-controls select {
-  background: #32455e;
+  background-color: #32455e;
+  /* Draw our own chevron so its distance from the text is fully under our control. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23c7d5e0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 12px 8px;
   border: 2px solid #417a9b;
   color: #c7d5e0;
-  padding: 12px;
+  box-sizing: border-box;
+  padding: 12px 24px 12px 12px;
   font-size: 16px;
   border-radius: 6px;
   font-family: inherit;
   cursor: pointer;
-  flex: 0 1 220px;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  flex: 0 0 auto;
 }
 
 /* Bookmarks list */

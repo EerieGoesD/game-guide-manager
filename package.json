@@ -1,6 +1,6 @@
 {
   "name": "reader-vault",
-  "version": "1.1.2",
+  "version": "1.2.2",
   "private": true,
   "author": "EERIE",
   "description": "Cross-platform reader and library (Electron + Capacitor) with local storage and URL loading",
